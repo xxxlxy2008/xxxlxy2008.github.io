@@ -24,7 +24,7 @@
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/7%E3%80%81log_compaction.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg">
 <meta property="article:published_time" content="2021-05-03T01:05:00.000Z">
-<meta property="article:modified_time" content="2021-05-05T06:45:30.239Z">
+<meta property="article:modified_time" content="2021-05-05T07:15:08.045Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png">
@@ -181,9 +181,9 @@
 <p>在使用的时候，producer 和 consumer 会约定好一个 topic 名称，producer 产生的 message 会写入到该指定的 topic 中，consumer 会从该指定的 topic 中读取 message。</p>
 <p>topic 可以看做为一个 message 通道，连接多个 producer 和 consumer，如下图所示：<br><img src="1%E3%80%81topic.png"></p>
 <p>在 topic 这个逻辑概念中，kafka 做了进一步的拆分，将一个 topic 分为一个或多个 partition（一个 topic 至少有一个 partition），如下图所示：<br><img src="2%E3%80%81partition.png"><br>从上图可以看出，当 message 在被 producer push 到一个 partition 的时候，都会被分配一个 offset 编号， offset 是这条 message 在这个 partition 中的唯一编号。</p>
-<p>通过 offset 编号，kafka 就可以保证一个 partition 内的 message 是有序的，我们可以认为 partition 是用来一个用来存储有序 message 的存储。</p>
+<p>通过 offset 编号，kafka 就可以保证一个 partition 内的 message 是有序的，我们可以认为 partition 是一个用来记录有序 message 的存储。</p>
 <p>在生产环境中，不同 topic 需要支持的流量大小有所不同，也就是说，topic 需要横向扩展的能力，kafka 就是通过 partition 来实现的。</p>
-<p>同一 topic 的不同 partition 会分配到不同的物理机上，partition 的 topic 横向扩展的最小单位，一个 partition 中存储的这一组 message 没法存储到多台机器上。</p>
+<p>同一 topic 的不同 partition 会分配到不同的物理机上，partition 是 topic 横向扩展的最小单位，一个 partition 中存储的这一组有序 message 没法存储到多台机器上。</p>
 <p>常见的 kafka 架构如下图所示：<br><img src="3%E3%80%81partition2.png"></p>
 <p>从上图中我们可以看到，多个 partition 位于同一个 broker 中，broker 其实就是一个 kafka server 服务，kafka 集群是由多个 broker 构成的。</p>
 <p>我们可以通过增加 partition 以及 broker 的方式，提高 topic 的吞吐量。</p>
