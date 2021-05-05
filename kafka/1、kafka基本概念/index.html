@@ -15,7 +15,7 @@
 <meta property="og:site_name" content="杨四正的源码剖析课">
 <meta property="og:description" content="Apache Kafka 是一种分布式消息系统，由Scala语言编写而成。 Kafak 基本概念messagemessage 是 Kafka 中最基本的数据单元，它由 key 和 value 两部分构成，KV 都为字节数组。 Kafka 会按照一定的策略，将消息按照 key 值路由到指定的 partition 中，从而保证 key 相同的 message 全部写入同一 partition 中。 v">
 <meta property="og:locale">
-<meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png">
+<meta property="og:image" content="https://github.com/xxxlxy2008/kafka_class/blob/main/%E5%9B%BE%E9%A2%98.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/1%E3%80%81topic.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/2%E3%80%81partition.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/3%E3%80%81partition2.png">
@@ -24,10 +24,10 @@
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/7%E3%80%81log_compaction.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg">
 <meta property="article:published_time" content="2021-05-03T01:05:00.000Z">
-<meta property="article:modified_time" content="2021-05-05T06:24:52.360Z">
+<meta property="article:modified_time" content="2021-05-05T06:39:11.268Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png">
+<meta name="twitter:image" content="https://github.com/xxxlxy2008/kafka_class/blob/main/%E5%9B%BE%E9%A2%98.png">
   
     <link rel="alternative" href="/atom.xml" title="杨四正的源码剖析课" type="application/atom+xml">
   
@@ -171,7 +171,7 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"><br><br/><br>Apache Kafka 是一种分布式消息系统，由Scala语言编写而成。</p>
+        <p><img src="https://github.com/xxxlxy2008/kafka_class/blob/main/%E5%9B%BE%E9%A2%98.png" alt="kafka源码剖析课"><br><br/><br>Apache Kafka 是一种分布式消息系统，由Scala语言编写而成。</p>
 <h1 id="Kafak-基本概念"><a href="#Kafak-基本概念" class="headerlink" title="Kafak 基本概念"></a>Kafak 基本概念</h1><h2 id="message"><a href="#message" class="headerlink" title="message"></a>message</h2><p>message 是 Kafka 中最基本的数据单元，它由 key 和 value 两部分构成，KV 都为字节数组。</p>
 <p>Kafka 会按照一定的策略，将消息按照 key 值路由到指定的 partition 中，从而保证 key 相同的 message 全部写入同一 partition 中。</p>
 <p>value 是 Kafka真正传递的业务数据。</p>
