@@ -22,9 +22,13 @@
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/5%E3%80%81replica.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/6%E3%80%81HW+LEO.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/7%E3%80%81log_compaction.png">
+<meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/8%E3%80%81consumer_group.png">
+<meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/8%E3%80%81consumer_group2.png">
+<meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/8%E3%80%81consumer_group3.png">
 <meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg">
+<meta property="og:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/%E6%8A%96%E9%9F%B3%E4%BA%8C%E7%BB%B4%E7%A0%81.jpeg">
 <meta property="article:published_time" content="2021-05-03T01:05:00.000Z">
-<meta property="article:modified_time" content="2021-05-05T07:15:08.045Z">
+<meta property="article:modified_time" content="2021-05-06T00:11:27.613Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http://example.com/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png">
@@ -194,7 +198,7 @@
 <li>处理集群其他Broker的请求，根据请求类型进行相应处理并返回响应。<br><br/><br/></li>
 </ul>
 <h2 id="log"><a href="#log" class="headerlink" title="log"></a>log</h2><p>了解了 partition、topic、broker 这个三个宏观概念之后，我们向微观方向进一步分析。</p>
-<p>partition 在逻辑上对应着一个 log，当 producer 向 partition 推送 message 的时候，kafka 实际上是将 message 写入到 producer 对应的 log 中。</p>
+<p>partition 在逻辑上对应着一个 log，当 producer 向 partition 推送 message 的时候，kafka 实际上是将 message 写入到 partition 对应的 log 中。</p>
 <p>log 由多个 segment 构成，log 和 segment 都是逻辑上的概念。实际上，log 对应 磁盘上的一个文件夹，segment 对应 log 文件夹下的一个 segment 文件和一个 index 文件。</p>
 <p>在写入 partition 时，我们只会写入最新的 segment 文件和 index 索引文件，当这个 segment 文件膨胀到一定大小之后，会创建新的 segment 文件继续写入，旧的 segment 文件就不再写入了。</p>
 <p>之所以这么设计，为了避免出现超大的单个 segment 文件，也是为了采用顺序 IO 的方式写入，所以只向最新的 segment 文件追加数据。</p>
@@ -270,10 +274,10 @@
 <p>根据 consumer group 的这个特性，我们可以将每个 consumer 独立组成一个 consumer group，这样就可以实现广播的效果（即一个 message 被多个 consumer 同时消费）。</p>
 <p>如果要实现独占消费的效果，可以将目标 topic 的全部 consumer 放入一个 consumer group 中，这样的话，就可以保证每个 partition 只有一个 consumer 消费。</p>
 <p>下图展示了一个 consumer group 中 consumer 与 partition 之间的对应关系，其中的 consumer0 和 consumer1 分别负责消费 partition0 和 partition1 两个 partition，consumer2 负责消费 partition2 和 partition3：</p>
-<p>![](8、consumer group.png)</p>
+<p><img src="8%E3%80%81consumer_group.png"></p>
 <p>consumer group 除了提供了独占和广播两种消费模式之外，consumer group 还实现了水平扩展和故障转移。在上图 consumer2 的处理能力不足以消费两个 partition 的时候，我们可以通过向 consumer group 中添加新 consumer 的方式，重新分配 partition 与 consumer 的映射关系，如下图所示：</p>
-<p>![](8、consumer group2.png)<br>在添加 consumer3 之后，consumer2 只消费 partition2 中的 message，partition3 则重新分配给了 consumer3 来消费。</p>
-<p>接下来再看 consumer group 故障转移的场景，在 consumer3 发生故障的时候，consumer group 也会重新分配 consumer 与 partition 的映射关系，如下图所示，consumer2 重新接手 partition3：<br>![](8、consumer group3.png)</p>
+<p><img src="8%E3%80%81consumer_group2.png"><br>在添加 consumer3 之后，consumer2 只消费 partition2 中的 message，partition3 则重新分配给了 consumer3 来消费。</p>
+<p>接下来再看 consumer group 故障转移的场景，在 consumer3 发生故障的时候，consumer group 也会重新分配 consumer 与 partition 的映射关系，如下图所示，consumer2 重新接手 partition3：<br><img src="8%E3%80%81consumer_group3.png"></p>
 <p>根据上面描述的 consumer 与 partition 一对多(或一)的原则，consumer group 中 consumer 的数量并不是越多越好，当一个 consumer group 中的 consumer 数量超过 topic 中 partition 的数量时，这会导致有 consumer 分配不到对应的 partition，从而造成这些 consumer 空闲。</p>
 <p><br/><br/></p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本课时我们重点介绍了 kafka 的基本概念，主要涉及到下面几部分：</p>
@@ -292,8 +296,8 @@
 <p>感谢同学们的观看，课程的相关文章和视频还会放到</p>
 <ul>
 <li>微信：<br><img src="%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg"></li>
-<li>B 站：</li>
-<li>抖音：</li>
+<li>抖音：<br><img src="%E6%8A%96%E9%9F%B3%E4%BA%8C%E7%BB%B4%E7%A0%81.jpeg"></li>
+<li>B 站：<a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1Db4y1Z7UF/">kafka基本概念</a></li>
 </ul>
 
       
