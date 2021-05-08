@@ -140,6 +140,180 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-3、深潜kafka-producer1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">3、深潜kafka_producer1</a>
+    </h1>
+  
+
+        
+        <a href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/" class="archive-article-date">
+  	<time datetime="2021-05-07T08:47:02.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-07</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>[]!(kafka源码剖析课.png)<br><br/></p>
+<h1 id="深潜-kafka-producer"><a href="#深潜-kafka-producer" class="headerlink" title="深潜 kafka producer"></a>深潜 kafka producer</h1><p>kafka 自定义了一套网络协议，我们可以使用任意语言来实现这套协议，实现向 kafka 集群 push message 以及从 kafka 集群 pull message 的效果。在 kafka 2.8.0 版本的源码中的 clients 模块就是官方默认提供的 Java 版本 producer、consumer 实现，我们本课时重点关注其中的 producer 部分实现。</p>
+<h2 id="kafka-producer-示例演示"><a href="#kafka-producer-示例演示" class="headerlink" title="kafka producer 示例演示"></a>kafka producer 示例演示</h2><p>按照国际惯例，先来一个 demo 示例，带同学们了解一下 kafka Producer 的基本使用，示例的具体代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ProducerDemo</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        Properties config = <span class="keyword">new</span> Properties();</span><br><span class="line">        config.put(<span class="string">&quot;client.id&quot;</span>, <span class="string">&quot;ProducerDemo&quot;</span>);</span><br><span class="line">        <span class="comment">// 指定kafka broker集群的地址</span></span><br><span class="line">        config.put(<span class="string">&quot;bootstrap.servers&quot;</span>, <span class="string">&quot;localhost:9092&quot;</span>);</span><br><span class="line">        <span class="comment">// 配置kafka集群响应之前，需要有多少replica成功复制了该message，all表示整个ISR集合都复制完成</span></span><br><span class="line">        config.put(<span class="string">&quot;acks&quot;</span>, <span class="string">&quot;all&quot;</span>);</span><br><span class="line">        <span class="comment">// 指定message key和value的序列化器，它负责将KV序列化成字节数组</span></span><br><span class="line">        config.put(<span class="string">&quot;key.serializer&quot;</span>, StringSerializer.class);</span><br><span class="line">        config.put(<span class="string">&quot;value.serializer&quot;</span>, StringSerializer.class);</span><br><span class="line">        KafkaProducer&lt;String, String&gt; producer = <span class="keyword">new</span> KafkaProducer&lt;&gt;(config);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">            <span class="comment">// 消息的value</span></span><br><span class="line">            <span class="keyword">long</span> startTime = System.currentTimeMillis();</span><br><span class="line">            <span class="comment">// 构造ProducerRecord对象，其中记录了该message的目标topic以及key和value</span></span><br><span class="line">            ProducerRecord&lt;String, String&gt; record =</span><br><span class="line">                    <span class="keyword">new</span> ProducerRecord&lt;&gt;(<span class="string">&quot;test_topic&quot;</span>, String.valueOf(i), <span class="string">&quot;YangSizheng_&quot;</span> + startTime);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 第二个参数是一个匿名的CallBack对象，当producer接收到kafka集群发来的ACK确认消息的时候，</span></span><br><span class="line">            <span class="comment">// 会调用其onCompletion()方法完成回调</span></span><br><span class="line">            Future&lt;RecordMetadata&gt; future = producer.send(record, <span class="keyword">new</span> Callback() &#123;</span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onCompletion</span><span class="params">(RecordMetadata metadata, Exception e)</span> </span>&#123;</span><br><span class="line">                    <span class="keyword">if</span> (e != <span class="keyword">null</span>)</span><br><span class="line">                        System.out.println(<span class="string">&quot;Send failed for record:&quot;</span> + record + <span class="string">&quot;, error message:&quot;</span> + e.getMessage());</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">            <span class="comment">// send()方法是异步发送message，返回的是一个Future对象。如果需要同步发送，可以调用其get()方法，</span></span><br><span class="line">            <span class="comment">// 返回的RecordMetadata中包含了该message落到了哪个partition上，以及分配的offset多少</span></span><br><span class="line">            RecordMetadata recordMetadata = future.get();</span><br><span class="line">            System.out.println(<span class="string">&quot;partition:&quot;</span> + recordMetadata.partition()</span><br><span class="line">                    + <span class="string">&quot;, offset:&quot;</span> + recordMetadata.offset());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在执行 ProducerDemo 之前，我们执行<code>kafka-console-consumer.sh</code>命令启动命令行 consumer：</p>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test_topic</span><br></pre></td></tr></table></figure>
+<p>然后执行 ProducerDemo 可以在控制台看到如下输出：</p>
+<p><img src="1%E3%80%81ProducerDemo%E8%BE%93%E5%87%BA.png"></p>
+<p>在 <code>kafka-console-consumer.sh</code>命令行中看到如下输出：</p>
+<p><img src="2%E3%80%81consumer%E8%BE%93%E5%87%BA.png"></p>
+<h2 id="kafka-producer-架构概述"><a href="#kafka-producer-架构概述" class="headerlink" title="kafka producer 架构概述"></a>kafka producer 架构概述</h2><p>了解了 kafka producer 的基本使用之后，我们开始深入 producer 的架构进行介绍，千言万语不及</p>
+<ol>
+<li>   ProducerInterceptors对消息进行拦截。</li>
+<li>   Serializer对消息的key和value进行序列化。</li>
+<li>   Partitioner为消息选择合适的Partition。</li>
+<li>   RecordAccumulator收集消息，实现批量发送。</li>
+<li>   Sender从RecordAccumulator获取消息。</li>
+<li>   构造ClientRequest。</li>
+<li>   将ClientRequest交给NetworkClient，准备发送。</li>
+<li>   NetworkClient将请求放入KafkaChannel的缓存。</li>
+<li>   执行网络IO，发送请求。</li>
+<li>   收到响应，调用ClientRequest的回调函数。<br>调用RecordBatch的回调函数，最终调用每个消息上注册的回调函数。</li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-2、kafka-2-8-0源码环境搭建" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">2、kafka_2.8.0源码环境搭建</a>
+    </h1>
+  
+
+        
+        <a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" class="archive-article-date">
+  	<time datetime="2021-05-06T09:02:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-06</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="kafka-2-8-0-源码环境搭建"><a href="#kafka-2-8-0-源码环境搭建" class="headerlink" title="kafka 2.8.0 源码环境搭建"></a>kafka 2.8.0 源码环境搭建</h1><p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"></p>
+<h2 id="安装-JDK"><a href="#安装-JDK" class="headerlink" title="安装 JDK"></a>安装 JDK</h2><p>JDK 的安装非常简单，这里我们安装 JDK 8 即可（虽然 JDK 现在的新版本是 16，但是国内生产环境还有相当一大部分还是停留在 8 这个版本上）。首先到 <a target="_blank" rel="noopener" href="https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html">JDK下载地址</a>下载对应系统的 JDK 安装包即可，这里我使用的是 mac 系统，下载 dmg 文件即可。</p>
+<p>下载完成之后，双击 dmg 文件，一直下一步即可安装完成。</p>
+        
+          <a class="article-more-a" href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-1、kafka基本概念" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -242,7 +416,7 @@
         <p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"><br><br/></p>
 <p>整个 kafka 源码剖析课，并不需要深入了解 Scala，只需要有面向对象的编程基础就行，例如，会点 Java 编程，剩下的交给我就好。</p>
 <hr>
-<p><strong><a href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="1、kafka基本概念">1、kafka基本概念</a></strong></p>
+<p><strong><a href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="1、kafka基本概念">1、kafka基本概念</a></strong><br><strong><a href="#">Post not found: 1、2、kafka-2-8-0源码环境搭建 1、2、kafka2.8.0源码环境搭建</a></strong></p>
 
       
 
