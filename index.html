@@ -57,6 +57,8 @@
 	        
 				<li><a href="/categories/kafka/">Kafka源码剖析课</a></li>
 	        
+				<li><a href="/categories/leetcode/">力扣习题课</a></li>
+	        
 			</ul>
 		</nav>
 		<nav class="header-smart-menu">
@@ -107,6 +109,8 @@
 			
 				
 			
+				
+			
 			
 			
 			<nav class="header-nav">
@@ -118,12 +122,14 @@
 			</nav>
 
 			<nav class="header-menu js-header-menu">
-				<ul style="width: 50%">
+				<ul style="width: 70%">
 				
 				
-					<li style="width: 50%"><a href="/">主页</a></li>
+					<li style="width: 33.333333333333336%"><a href="/">主页</a></li>
 		        
-					<li style="width: 50%"><a href="/categories/kafka/">Kafka源码剖析课</a></li>
+					<li style="width: 33.333333333333336%"><a href="/categories/kafka/">Kafka源码剖析课</a></li>
+		        
+					<li style="width: 33.333333333333336%"><a href="/categories/leetcode/">力扣习题课</a></li>
 		        
 				</ul>
 			</nav>
@@ -140,6 +146,350 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-5、深潜kafka-producer3" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/">5、深潜KafkaProducer——Sender线程</a>
+    </h1>
+  
+
+        
+        <a href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/" class="archive-article-date">
+  	<time datetime="2021-05-10T06:27:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-10</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>通过上一课时的介绍我们了解到，业务线程通过 KafkaProducer.send() 方法将 message 放入 RecordAccumulator 中机械能缓冲，并没有进行实际的网络 I/O 操作，真正的网络 I/O 操作是由 Sender 线程完成。</p>
+<p>我们先来了解一下 Sender 线程进行网络 I/O 的整个流程：</p>
+<ul>
+<li>它根据 RecordAccumulator 的缓存情况，筛选出可以向哪些Node节点发送消息，即上一小节介绍的RecordAccumulator.ready()方法；然后，根据生产者与各个节点的连接情况（由NetworkClient管理），过滤Node节点；之后，生成相应的请求，这里要特别注意的是，每个Node节点只生成一个请求；最后，调用NetWorkClient将请求发送出去。下图2-20展示了Sender依赖的三个比较关键的组件：</li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-4、深潜kafka-producer2" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/">4、深潜KafkaProducer —— RecordAccumulator</a>
+    </h1>
+  
+
+        
+        <a href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/" class="archive-article-date">
+  	<time datetime="2021-05-09T14:19:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-09</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>通过上一课时的介绍我们了解到，业务线程使用 KafkaProducer.send() 方法发送 message 的时候，会先将其写入RecordAccumulator 中进行缓冲，当 RecordAccumulator 中缓存的 message 达到一定阈值的时候，会由 IO 线程批量形成请求，发送到 kafka 集群。本课时我们就重点来看一下 RecordAccumulator 这个缓冲区的结构。</p>
+        
+          <a class="article-more-a" href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-1、两数之和" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/">1、两数之和</a>
+    </h1>
+  
+
+        
+        <a href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/" class="archive-article-date">
+  	<time datetime="2021-05-08T06:37:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="两数之和"><a href="#两数之和" class="headerlink" title="两数之和"></a>两数之和</h2><p>给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值的那两个整数，并返回它们的数组下标。<br>你可以假设每种输入只会对应一个答案。但是，数组中同一个元素在答案里不能重复出现。<br>你可以按任意顺序返回答案。</p>
+<p>示例 1：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">输入：nums &#x3D; [11,2,15,7], target &#x3D; 9</span><br><span class="line">输出：[1,3]</span><br><span class="line">解释：因为 nums[1] + nums[3] &#x3D;&#x3D; 9 ，返回 [1, 3] 。</span><br></pre></td></tr></table></figure>
+<p>示例 2：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">输入：nums &#x3D; [3,2,4], target &#x3D; 6</span><br><span class="line">输出：[1,2]</span><br></pre></td></tr></table></figure>
+
+<p>示例 3：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">输入：nums &#x3D; [3,3], target &#x3D; 6</span><br><span class="line">输出：[0,1]</span><br></pre></td></tr></table></figure>
+
+<p>提示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">2 &lt;&#x3D; nums.length &lt;&#x3D; 103</span><br><span class="line">-109 &lt;&#x3D; nums[i] &lt;&#x3D; 109</span><br><span class="line">-109 &lt;&#x3D; target &lt;&#x3D; 109</span><br><span class="line">只会存在一个有效答案</span><br></pre></td></tr></table></figure>
+
+<h2 id="解法一："><a href="#解法一：" class="headerlink" title="解法一："></a>解法一：</h2><p>暴力循环。以示例1为例，我们拿到 nums 数组之后，需要为每个值循环一边 nums 数组，这样的话时间复杂度就是 O(n^2)。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span>[] twoSum(<span class="keyword">int</span>[] numbers, <span class="keyword">int</span> target) &#123;</span><br><span class="line">    <span class="keyword">int</span>[] ret = <span class="keyword">new</span> <span class="keyword">int</span>[<span class="number">2</span>];</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; numbers.length; i++) &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> j = i + <span class="number">1</span>; j &lt; numbers.length; j++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (numbers[i] + numbers[j] == target) &#123;</span><br><span class="line">                ret[<span class="number">0</span>] = i + <span class="number">1</span>;</span><br><span class="line">                ret[<span class="number">1</span>] = j + <span class="number">1</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>虽然这种方法可以得到解，但是在面试的时候，面试官一般会问：还有没有更优解，甚至直接给挂掉。</p>
+<h2 id="解法二："><a href="#解法二：" class="headerlink" title="解法二："></a>解法二：</h2><p>使用哈希表的方式来解决，核心思想是用空间换时间。</p>
+<p>我们在遍历的过程中，用一个 HashMap 存储数值与其对应的下标索引，然后通过 <code>target - 当前值</code> 的方式，得到补值然后查 HashMap 即可确定两数的下标值。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">int</span>[] twoSum(<span class="keyword">int</span>[] numbers, <span class="keyword">int</span> target) &#123;</span><br><span class="line">    Map&lt;Integer, Integer&gt; map = <span class="keyword">new</span> HashMap&lt;Integer, Integer&gt;();</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; nums.length; ++i) &#123;</span><br><span class="line">        <span class="keyword">if</span> (map.containsKey(target - nums[i])) &#123; <span class="comment">// 检查补值是否存在</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> <span class="keyword">int</span>[]&#123;map.get(target - nums[i]), i&#125;;</span><br><span class="line">        &#125;</span><br><span class="line">        map.put(nums[i], i); <span class="comment">// 补值不存在，则放入当前值</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="keyword">int</span>[<span class="number">0</span>];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这种解法的时间复杂度就是 O(n)，但是空间复杂度就上升到了 O(n)。</p>
+<h2 id="变体1"><a href="#变体1" class="headerlink" title="变体1"></a>变体1</h2><p>如果上述问题多加一个条件：输入的数组是一个有序数组的话，你该如何优化算法呢？</p>
+<p>我们可以采用双指针的方式来解这道题，我们使用 <code>i</code>、<code>j</code> 两个指针，指向数组的头和尾，不断计算 num[i] 和 num[j] 的和，当和大于 target 的时候，j 前移，当和小于 target 的时候，i 后移，直至找到 <code>i</code> 和 <code>j</code>。  </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">int</span>[] twoSum(<span class="keyword">int</span>[] numbers, <span class="keyword">int</span> target) &#123;</span><br><span class="line">    <span class="keyword">if</span> (numbers == <span class="keyword">null</span> || numbers.length == <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">int</span> i = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">int</span> j = numbers.length - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (i &lt; j) &#123;</span><br><span class="line">        <span class="keyword">int</span> x = numbers[i] + numbers[j];</span><br><span class="line">        <span class="keyword">if</span> (x &lt; target) &#123;</span><br><span class="line">            ++i;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (x &gt; target) &#123;</span><br><span class="line">            j--;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> <span class="keyword">int</span>[]&#123;i + <span class="number">1</span>, j + <span class="number">1</span>&#125;;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<br/>
+
+<h2 id="三数之和"><a href="#三数之和" class="headerlink" title="三数之和"></a>三数之和</h2><p>输入一个无序的数组，从这个数组中找出 3 个数之和为 0 的所有组合。<br>注意：要求输出不重复的解。</p>
+<p>示例</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">输入：</span><br><span class="line">[-1, 0, 1, 2, -1, -4],</span><br><span class="line"></span><br><span class="line">输出：</span><br><span class="line">[</span><br><span class="line">  [-1, 0, 1],</span><br><span class="line">  [-1, -1, 2]</span><br><span class="line">]</span><br><span class="line">&#x2F;&#x2F; [-1，-1，2]、[2, -1, -1] 这 3 个解是重复的。</span><br></pre></td></tr></table></figure>
+
+<h2 id="解法一：-1"><a href="#解法一：-1" class="headerlink" title="解法一："></a>解法一：</h2><p>暴力解法，三层 for 循环，这里就不多说了。</p>
+<h2 id="解法二：-1"><a href="#解法二：-1" class="headerlink" title="解法二："></a>解法二：</h2><p>我们可以先对数组进行排序，接下来遍历数组，对于遍历到的每个值，再使用双指针的方式，查找两个与其和为 0 的值，查找一组结果就记录下来，直到遍历完成。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> ArrayList&lt;ArrayList&lt;Integer&gt;&gt; threeSum(<span class="keyword">int</span>[] num) &#123;</span><br><span class="line">    ArrayList&lt;ArrayList&lt;Integer&gt;&gt; result = <span class="keyword">new</span> ArrayList&lt;ArrayList&lt;Integer&gt;&gt;();</span><br><span class="line">    <span class="keyword">if</span> (num.length &lt; <span class="number">3</span>)</span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">    <span class="comment">// sort array</span></span><br><span class="line">    Arrays.sort(num);</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; num.length - <span class="number">2</span>; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (i == <span class="number">0</span> || num[i] &gt; num[i - <span class="number">1</span>]) &#123;</span><br><span class="line">            <span class="keyword">int</span> negate = -num[i];</span><br><span class="line">            <span class="keyword">int</span> start = i + <span class="number">1</span>;</span><br><span class="line">            <span class="keyword">int</span> end = num.length - <span class="number">1</span>;</span><br><span class="line">            <span class="keyword">while</span> (start &lt; end) &#123;</span><br><span class="line">                <span class="keyword">if</span> (num[start] + num[end] == negate) &#123;</span><br><span class="line">                    ArrayList&lt;Integer&gt; temp = <span class="keyword">new</span> ArrayList&lt;Integer&gt;();</span><br><span class="line">                    temp.add(num[i]);</span><br><span class="line">                    temp.add(num[start]);</span><br><span class="line">                    temp.add(num[end]);</span><br><span class="line">                    result.add(temp);</span><br><span class="line">                    start++;</span><br><span class="line">                    end--;</span><br><span class="line">                    <span class="comment">//avoid duplicate solutions</span></span><br><span class="line">                    <span class="keyword">while</span> (start &lt; end &amp;&amp; num[end] == num[end + <span class="number">1</span>])</span><br><span class="line">                        end--;</span><br><span class="line">                    <span class="keyword">while</span> (start &lt; end &amp;&amp; num[start] == num[start - <span class="number">1</span>])</span><br><span class="line">                        start++;</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (num[start] + num[end] &lt; negate) &#123;</span><br><span class="line">                    start++;</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    end--;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>本课时的文章和视频讲解，还会放到：</p>
+<ul>
+<li><p>微信公众号：<br><img src="%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg"></p>
+</li>
+<li><p>B 站搜索：杨四正</p>
+</li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-0、杨四正的力扣习题课目录" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/">0、杨四正的力扣习题课目录</a>
+    </h1>
+  
+
+        
+        <a href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/" class="archive-article-date">
+  	<time datetime="2021-05-08T06:30:50.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>力扣习题课主要是讲解 LeetCode 上的算法题，可以帮助你应对面试中的一些算法题。</p>
+<p><strong><a href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/" title="1、两数之和">1、两数之和</a></strong></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-3、深潜kafka-producer1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -147,7 +497,7 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">3、深潜kafka_producer1</a>
+      <a class="article-title" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">3、深潜KafkaProducer —— 核心架构</a>
     </h1>
   
 
@@ -160,8 +510,8 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>[]!(kafka源码剖析课.png)<br><br/></p>
-<h1 id="深潜-kafka-producer"><a href="#深潜-kafka-producer" class="headerlink" title="深潜 kafka producer"></a>深潜 kafka producer</h1><p>kafka 自定义了一套网络协议，我们可以使用任意语言来实现这套协议，实现向 kafka 集群 push message 以及从 kafka 集群 pull message 的效果。在 kafka 2.8.0 版本的源码中的 clients 模块就是官方默认提供的 Java 版本 producer、consumer 实现，我们本课时重点关注其中的 producer 部分实现。</p>
+        <p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"><br><br/></p>
+<h1 id="深潜-kafka-producer-——-核心架构"><a href="#深潜-kafka-producer-——-核心架构" class="headerlink" title="深潜 kafka producer —— 核心架构"></a>深潜 kafka producer —— 核心架构</h1><p>kafka 自定义了一套网络协议，我们可以使用任意语言来实现这套协议，实现向 kafka 集群 push message 以及从 kafka 集群 pull message 的效果。在 kafka 2.8.0 版本的源码中的 clients 模块就是官方默认提供的 Java 版本 producer、consumer 实现，我们本课时重点关注其中的 producer 部分实现。</p>
         
           <a class="article-more-a" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/#more">more >></a>
         
@@ -397,7 +747,7 @@
         <p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"><br><br/></p>
 <p>整个 kafka 源码剖析课，并不需要深入了解 Scala，只需要有面向对象的编程基础就行，例如，会点 Java 编程，剩下的交给我就好。</p>
 <hr>
-<p><strong><a href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="1、kafka基本概念">1、kafka基本概念</a></strong><br><strong><a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" title="2、kafka2.8.0源码环境搭建">2、kafka2.8.0源码环境搭建</a></strong></p>
+<p><strong><a href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="1、kafka基本概念">1、kafka基本概念</a></strong><br><strong><a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" title="2、kafka2.8.0源码环境搭建">2、kafka2.8.0源码环境搭建</a></strong><br><strong><a href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/" title="3、深潜KafkaProducer——核心架构">3、深潜KafkaProducer——核心架构</a></strong><br><strong><a href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/" title="4、深潜KafkaProducer——RecordAccumulator">4、深潜KafkaProducer——RecordAccumulator</a></strong></p>
 
       
 
