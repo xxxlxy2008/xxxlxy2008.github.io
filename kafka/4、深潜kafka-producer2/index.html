@@ -31,7 +31,7 @@
 <meta property="og:image" content="http://example.com/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/15%E3%80%81%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%8A%A0%E9%94%81.png">
 <meta property="og:image" content="http://example.com/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg">
 <meta property="article:published_time" content="2021-05-09T14:19:05.000Z">
-<meta property="article:modified_time" content="2021-05-15T01:20:32.320Z">
+<meta property="article:modified_time" content="2021-05-18T23:53:05.960Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http://example.com/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/1%E3%80%81producer%E5%AE%8C%E6%95%B4%E6%9E%B6%E6%9E%84%E5%9B%BE.png">
@@ -188,7 +188,7 @@
 <span id="more"></span>
 
 <p><img src="1%E3%80%81producer%E5%AE%8C%E6%95%B4%E6%9E%B6%E6%9E%84%E5%9B%BE.png"></p>
-<p>首先，我们从上图中可以看出，RecordAccumulator 会由业务线程写入、Sender 线程读取，这是一个非常明显的生产者-消费者模式，所以我们需要保证 RecordAccumulator  是线程安全的。<br>RecordAccumulator 中维护了一个 ConcurrentMap&lt;TopicPartition, Deque<ProducerBatch>&gt; 类型的集合，其中的 Key 是 TopicPartition 用来表示目标 partition，Value 是 ArrayDeque<ProducerBatch> 队列，用来缓冲发往目标 partition 的消息。 这里的 ArrayDeque 并不是线程安全的集合，后面我们会看到加锁的相关操作。</p>
+<p>首先，我们从上图中可以看出，RecordAccumulator 会由业务线程写入、Sender 线程读取，这是一个非常明显的生产者-消费者模式，所以我们需要保证 RecordAccumulator  是线程安全的。<br>RecordAccumulator 中维护了一个 <code>ConcurrentMap&lt;TopicPartition, Deque&lt;ProducerBatch&gt;&gt;</code> 类型的集合，其中的 Key 是 TopicPartition 用来表示目标 partition，Value 是 <code>ArrayDeque&lt;ProducerBatch&gt;</code> 队列，用来缓冲发往目标 partition 的消息。 这里的 ArrayDeque 并不是线程安全的集合，后面我们会看到加锁的相关操作。</p>
 <p>在每个 ProducerBatch 中都维护了一个 MemoryRecordsBuilder 对象，MemoryRecordsBuilder 才是真正存储 message 的地方。RecordAccumulator 、ProducerBatch、MemoryRecordsBuilder 这三个核心类的关系如下图所示：</p>
 <img src="./2、RecordAccumulator类间关系.png" width = "300" alt="client模块" align="center" />
 
@@ -248,7 +248,7 @@
 <li>base sequence：基础序号，用于支持幂等性（Exactly Once 语义），用于校验是否是重复 Record。</li>
 <li>records count：Record 的数量。</li>
 </ol>
-<p>通过分析在 V2 版本中，的消息不仅提供了类似事务、幂等等更多的功能，还对空间占用提供了足够的优化，总体提升很大</p>
+<p>通过分析 V2 版本的消息格式我们知道，kafka message 不仅提供了类似事务、幂等等新功能，还对空间占用提供了足够的优化，总体提升很大</p>
 <h2 id="MemoryRecordsBuilder"><a href="#MemoryRecordsBuilder" class="headerlink" title="MemoryRecordsBuilder"></a>MemoryRecordsBuilder</h2><p>了解了 kafka message 格式的演变之后，我们回到 KafkaProducer 的代码。</p>
 <p>每个 MemoryRecordsBuilder 底层依赖一个 ByteBuffer 完成 message 的存储，我们后面会深入介绍 KafkaProducer 对 ByteBuffer 的管理。在 MemoryRecordsBuilder 中会将 ByteBuffer 封装成 ByteBufferOutputStream，ByteBufferOutputStream 实现了 OutputStream，这样我们就可以按照流的方式写入数据了。同时，ByteBufferOutputStream 提供了自动扩容底层 ByteBuffer 的能力。</p>
 <p>还有一个需要关注的是 compressionType 字段，它用来指定当前 MemoryRecordsBuilder 使用哪种压缩算法来压缩 ByteBuffer 中的数据，kafka 目前已支持的压缩算法有：GZIP、SNAPPY、LZ4、ZSTD 四种，注意：只有 kafka V2 版本协议支持 ZSTD 压缩算法。</p>

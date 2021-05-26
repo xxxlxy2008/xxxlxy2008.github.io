@@ -146,6 +146,56 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-kafka消息格式" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        为了方便这里直接整理了一份kafka 2.8.0 版本的message格式：
+        
+          <a class="article-more-a" href="/uncategorized/kafka%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/uncategorized/kafka%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-5、深潜kafka-producer3" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -166,12 +216,10 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>通过上一课时的介绍我们了解到，业务线程通过 KafkaProducer.send() 方法将 message 放入 RecordAccumulator 中机械能缓冲，并没有进行实际的网络 I/O 操作，真正的网络 I/O 操作是由 Sender 线程完成。</p>
-<p>我们先来了解一下 Sender 线程进行网络 I/O 的整个流程：</p>
-<ul>
-<li>它根据 RecordAccumulator 的缓存情况，筛选出可以向哪些Node节点发送消息，即上一小节介绍的RecordAccumulator.ready()方法；然后，根据生产者与各个节点的连接情况（由NetworkClient管理），过滤Node节点；之后，生成相应的请求，这里要特别注意的是，每个Node节点只生成一个请求；最后，调用NetWorkClient将请求发送出去。下图2-20展示了Sender依赖的三个比较关键的组件：</li>
-</ul>
-
+        <p>通过上一课时的介绍我们了解到，业务线程通过 KafkaProducer.send() 方法将 message 放入 RecordAccumulator 中进行能缓冲，并没有进行实际的网络 I/O 操作，真正的网络 I/O 操作是由 Sender 线程完成。</p>
+        
+          <a class="article-more-a" href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/#more">more >></a>
+        
       
 
       
