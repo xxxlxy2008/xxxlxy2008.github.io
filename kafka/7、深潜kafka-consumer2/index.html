@@ -6,15 +6,22 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="http://example.com">
-  <title>Archives | 杨四正的源码剖析课</title>
+  <title>7、深潜kafka consumer —— consumer | 杨四正的源码剖析课</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="杨四正的源码剖析课">
-<meta property="og:url" content="http://example.com/archives/index.html">
+  <meta name="description" content="ConsumerPartitionAssignor在 rebalance 协议里面，group leader 在收到 JoinGroup Response 之后，会按照其中指定的分配策略完成 partition 分配，每个 partition 分配策略就是一个 ConsumerPartitionAssignor 接口的实现。下图展示了 ConsumerPartitionAssignor 继承结构：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="7、深潜kafka consumer —— consumer">
+<meta property="og:url" content="http://example.com/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/index.html">
 <meta property="og:site_name" content="杨四正的源码剖析课">
+<meta property="og:description" content="ConsumerPartitionAssignor在 rebalance 协议里面，group leader 在收到 JoinGroup Response 之后，会按照其中指定的分配策略完成 partition 分配，每个 partition 分配策略就是一个 ConsumerPartitionAssignor 接口的实现。下图展示了 ConsumerPartitionAssignor 继承结构：">
 <meta property="og:locale">
+<meta property="og:image" content="http://example.com/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/6%E3%80%81ConsumerPartitionAssignor%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB%E5%9B%BE.png">
+<meta property="og:image" content="http://example.com/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/7%E3%80%81ConsumerPartitionAssignor%E7%B1%BB%E7%BB%93%E6%9E%84.png">
+<meta property="article:published_time" content="2021-06-02T12:35:54.000Z">
+<meta property="article:modified_time" content="2021-06-07T13:16:40.239Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/6%E3%80%81ConsumerPartitionAssignor%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB%E5%9B%BE.png">
   
     <link rel="alternative" href="/atom.xml" title="杨四正的源码剖析课" type="application/atom+xml">
   
@@ -144,64 +151,173 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-7、深潜kafka-consumer2" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2021" class="archive-year">2021</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" class="archive-article-date">
-  	<time datetime="2021-06-07T12:56:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-07</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/">8、深潜kafka-consumer3</a>
+    <h1 class="article-title" itemprop="name">
+      7、深潜kafka consumer —— consumer
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" class="archive-article-date">
+        
+        <a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" class="archive-article-date">
   	<time datetime="2021-06-02T12:35:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-02</time>
 </a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/">7、深潜kafka consumer —— consumer</a>
-    </h1>
-  
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="ConsumerPartitionAssignor"><a href="#ConsumerPartitionAssignor" class="headerlink" title="ConsumerPartitionAssignor"></a>ConsumerPartitionAssignor</h2><p>在 rebalance 协议里面，group leader 在收到 JoinGroup Response 之后，会按照其中指定的分配策略完成 partition 分配，每个 partition 分配策略就是一个 ConsumerPartitionAssignor 接口的实现。下图展示了 ConsumerPartitionAssignor 继承结构：</p>
+<p><img src="6%E3%80%81ConsumerPartitionAssignor%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB%E5%9B%BE.png"></p>
+<p>ConsumerPartitionAssignor 接口中定义了五个内部类，我们一个个来说：</p>
+<p><img src="7%E3%80%81ConsumerPartitionAssignor%E7%B1%BB%E7%BB%93%E6%9E%84.png"></p>
+<ul>
+<li><p>Subscription 中保存了 consumer 参加 rebalance 之前已经订阅的 topic（topics字段）、已分配的 partition（ownedPartitions 字段，<code>List&lt;TopicPartition&gt;</code>），以及在 consumer 端配置的 groupInstanceId（在 Static Membership 优化中使用）。</p>
+</li>
+<li><p>Assignment 中保存了 partition 的分配结果，partitions 字段（<code>List&lt;TopicPartition&gt;</code>）表示的是分配给某 consumer 的 TopicPartition 集合，userData 是用户自定义的数据。</p>
+</li>
+<li><p>GroupAssignment 底层通过 <code>Map&lt;String, Assignment&gt;</code> 维护全部的 partition 分配结果。</p>
+</li>
+<li><p>GroupSubscription 底层通过 <code>Map&lt;String, Subscription&gt;</code> 记录全部 consumer 目前已分配的 partition 信息。这两个 Map 的 Key 都是 consumer 在 consumer group 中的唯一标识 —— MemberId。</p>
+</li>
+<li><p>RebalanceProtocol 是个枚举，可选值有 EAGER、COOPERATIVE 两个，对应了我们前面介绍的两个 rebalance 协议的名称。</p>
+</li>
+</ul>
+<p>接下来看 ConsumerPartitionAssignor 的方法：</p>
+<ul>
+<li>assign() 方法是其中最核心的方法 ，它接收集 kafka 集群元数据信息以及每个 consumer 目前的 partition 订阅情况，返回的是 GroupAssignment，也就是 partition 的分配结果。</li>
+<li>在每个 consumer 收到 group leader 发来的 partition 分配结果时，会调用 onAssignment() 这个回调方法，此调用发生在解析 SyncGroupResponse 之后。</li>
+<li>supportedProtocols() 方法用于获取当前 ConsumerPartitionAssignor 支持的 rebalance 协议。</li>
+</ul>
+<p>AbstractPartitionAssignor 抽象类实现了 ConsumerPartitionAssignor 接口，其中主要是对 assign() 方法进行了简单的实现，具体实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> GroupAssignment <span class="title">assign</span><span class="params">(Cluster metadata, GroupSubscription groupSubscription)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 获取当前各个consumer已订阅的partition信息</span></span><br><span class="line">    Map&lt;String, Subscription&gt; subscriptions = groupSubscription.groupSubscription();</span><br><span class="line">    <span class="comment">// 获取订阅了哪些topic</span></span><br><span class="line">    Set&lt;String&gt; allSubscribedTopics = <span class="keyword">new</span> HashSet&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;String, Subscription&gt; subscriptionEntry : subscriptions.entrySet())</span><br><span class="line">        allSubscribedTopics.addAll(subscriptionEntry.getValue().topics());</span><br><span class="line">    <span class="comment">// 从Metadata元数据中获取每个topic的partition个数</span></span><br><span class="line">    Map&lt;String, Integer&gt; partitionsPerTopic = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (String topic : allSubscribedTopics) &#123;</span><br><span class="line">        Integer numPartitions = metadata.partitionCountForTopic(topic);</span><br><span class="line">        <span class="keyword">if</span> (numPartitions != <span class="keyword">null</span> &amp;&amp; numPartitions &gt; <span class="number">0</span>)</span><br><span class="line">            partitionsPerTopic.put(topic, numPartitions);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 调用子类的assign()方法进行partition分配</span></span><br><span class="line">    Map&lt;String, List&lt;TopicPartition&gt;&gt; rawAssignments = assign(partitionsPerTopic, subscriptions);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将partition分配结果封装成GroupAssignment对象返回</span></span><br><span class="line">    Map&lt;String, Assignment&gt; assignments = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;String, List&lt;TopicPartition&gt;&gt; assignmentEntry : rawAssignments.entrySet())</span><br><span class="line">        assignments.put(assignmentEntry.getKey(), <span class="keyword">new</span> Assignment(assignmentEntry.getValue()));</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> GroupAssignment(assignments);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-        <div class="article-info info-on-right">
-          
-          
+<h3 id="RangeAssignor"><a href="#RangeAssignor" class="headerlink" title="RangeAssignor"></a>RangeAssignor</h3><p>下面来看 ConsumerPartitionAssignor  具体的实现类，RangeAssignor 策略的原理是按照 consumer 总数和 partition 总数进行整除运算来获得一个跨度，然后将 partition 按照跨度进行平均分配，以保证 partition 尽可能均匀地分配给所有的 consumer。</p>
+<p>对于每一个 topic，RangeAssignor 策略会将 consumer group 内所有订阅这个 topic 的 consumer 按照名称的字典序排序，然后为每个 consumer 划分固定的 partition 范围，如果不够平均分配，那么字典序靠前的 consumer 会被多分配一个分区。</p>
+<p>假设 <code>n =  partition_num / consumer_num</code>，<code>m = partition_num % consumer_num</code>，那么前 m 个消费者每个分配 n+1 个 partition，后面的 <code>consumer_num - m</code> 个消费者每个分配 n 个 partition。我们举个栗子，假设 consumer group 内有 2 个 consumer，都订阅了 t0 和 t1 两个 topic，并且每个 topic 都有 4 个 partition，那么通过 RangeAssignor  分配的结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t0p1、t1p0、t1p1（其中，t0p0 是 topic0 中的 partition0）</span><br><span class="line">consumer1：t0p2、t0p3、t1p2、t1p3</span><br></pre></td></tr></table></figure>
+
+<p>看上去 RangeAssignor 的分配是相对均匀的，但是在有的场景中，分配结果就会出现不均匀的情况。假设上面的示例中，每个 topic 有三个 partition，RangeAssignor 的分配结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t0p1、t1p0、t1p1</span><br><span class="line">consumer1：t0p2、t1p2</span><br></pre></td></tr></table></figure>
+
+<p>明显可以看到，这种分配结果显然是不均匀的，随着不均匀的 topic  越来越多，会导致 consumer 处理的 partition 不均衡。</p>
+<h3 id="RoundRobinAssignor"><a href="#RoundRobinAssignor" class="headerlink" title="RoundRobinAssignor"></a>RoundRobinAssignor</h3><p>RoundRobinAssignor 分配策略的原理是将 consumer group 内所有 consumer 以及所有 TopicPartition 按照字典序排序，然后通过轮询方式逐个将 partition 分配给每个 consumer。</p>
+<p>如果同一个 consumer group 内所有 consumer 订阅的 topic 都是相同的， RoundRobinAssignor 策略的分配结果是均匀的。依旧是上面两个 t0、t1 两个 topic，每个 topic 三个 partition，RoundRobinAssignor 的分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t0p2、t1p1</span><br><span class="line">consumer1：t0p1、t1p0、t1p2</span><br></pre></td></tr></table></figure>
+
+<p>但如果 consumer group 内的 consumer 订阅了不同的 topic，有可能会导致分配结果不均匀。例如，假设 consumer group 内有 3 个 consumer，订阅了 3 个 topic，每个 topic 有 3 个 partition。其中，consumer0 订阅了 topic0，consumer1 订阅了 t0 和 t1 ，consumer2 订阅的是 t0、t1 和 t2，最终的分配结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0</span><br><span class="line">consumer1：t1p0</span><br><span class="line">consumer2：t1p1、t2p0、t2p1、t2p2</span><br></pre></td></tr></table></figure>
+
+<h3 id="StickyAssignor"><a href="#StickyAssignor" class="headerlink" title="StickyAssignor"></a>StickyAssignor</h3><p>StickyAssignor 是一种黏性分配策略，它的主要目的是在分配均匀的前提下，尽可能的与上次分配结果保持一致。StickyAssignor策略的具体实现要比RangeAssignor和RoundRobinAssignor这两种分配策略要复杂很多。</p>
+<p>下面我们通过一个示例来说明 StickyAssignor 的分配效果。假设 consumer group 内有 3 个 consumer，他们同时订阅了 4 个topic，每个 topic 有 2 个 partition。最终的分配结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t1p1、t3p0</span><br><span class="line">consumer1：t0p1、t2p0、t3p1</span><br><span class="line">consumer2：t1p0、t2p1</span><br></pre></td></tr></table></figure>
+
+<p>此时，consumer1 如果宕机离开 consumer group，那么 consumer group 会执行rebalance，新的分配结果就变成了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t1p1、t3p0、t2p0</span><br><span class="line">consumer2：t1p0、t2p1、t0p1、t3p1</span><br></pre></td></tr></table></figure>
+
+<p>而如果使用 RoundRobinAssignor ，分配的结果是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t1p0、t2p0、t3p0</span><br><span class="line">consumer2：t0p1、t1p1、t2p1、t3p1</span><br></pre></td></tr></table></figure>
+
+<p>比较这两个策略的分配结果可以看出，StickyAssignor 保留了上一次分配的全部结果，只是将 consumer1 负责的 partition 分配给了 consumer0 和 consumer1。</p>
+<p>再举个栗子，三个 consumer订阅了三个 topic，每个 topic 三个 partition，consumer0 订阅了 t0，consumer1 订阅了 t0 和 t1，consumer2 订阅了 t0、t1 和 t2。此时采用 RoundRobinAssignor 策略得到的不均匀结果前面说明了，这里不再重复。如果使用 StickyAssignor 策略，分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0</span><br><span class="line">consumer1：t1p0, t1p1</span><br><span class="line">consumer2：t2p0, t2p1, t2p2</span><br></pre></td></tr></table></figure>
+
+<p>如果此时 consumer0 宕机，RoundRobinAssignor策略产生的新分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer1：t0p0、t1p1</span><br><span class="line">consumer2：t1p0、t2p0、t2p1、t2p2</span><br></pre></td></tr></table></figure>
+
+<p>而使用 StickyAssignor 策略产生的新分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer1：t1p0、t1p1、t0p0</span><br><span class="line">consumer2：t2p0、t2p1、t2p2</span><br></pre></td></tr></table></figure>
+
+<p>显然，StickyAssignor 策略比其他两种分配策略更加优秀。</p>
+<p>下面来看一下 StickyAssignor 的实现吧，为啥不看 RangeAssignor、RoundRobinAssignor 的实现呢？因为简单，简单到从原理直接就可以给出代码。</p>
+<h4 id="具体实现分析"><a href="#具体实现分析" class="headerlink" title="具体实现分析"></a>具体实现分析</h4><p>要看 StickyAssignor 先父类 AbstractStickyAssignor，它的 assign() 方法实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Map&lt;String, List&lt;TopicPartition&gt;&gt; assign(Map&lt;String, Integer&gt; partitionsPerTopic,</span><br><span class="line">                                                Map&lt;String, Subscription&gt; subscriptions) &#123;</span><br><span class="line">    Map&lt;String, List&lt;TopicPartition&gt;&gt; consumerToOwnedPartitions = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">if</span> (allSubscriptionsEqual(partitionsPerTopic.keySet(), subscriptions, consumerToOwnedPartitions)) &#123;</span><br><span class="line">        log.debug(<span class="string">&quot;Detected that all consumers were subscribed to same set of topics, invoking the optimized assignment algorithm&quot;</span>);</span><br><span class="line">        partitionsTransferringOwnership = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">        <span class="keyword">return</span> constrainedAssign(partitionsPerTopic, consumerToOwnedPartitions);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        log.debug(<span class="string">&quot;Detected that all not consumers were subscribed to same set of topics, falling back to the general case assignment algorithm&quot;</span>);</span><br><span class="line">        partitionsTransferringOwnership = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">return</span> generalAssign(partitionsPerTopic, subscriptions);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>allSubscriptionsEqual() 方法中做了两件事，一件事是检查各个 consumer 订阅的 topic 是否一致，体现在该方法的返回值中，另一件事是填充 consumerToOwnedPartitions 集合，这个集合填充的是当前各个 consumer 处理的 TopicPartition 集合。深入 allSubscriptionsEqual() 方法可以看到填充 consumerToOwnedPartitions 集合的数据来源与  memberData() 这个抽象方法，StrickyAssignor 的 实现是从 Subscription.userData 中得到的。</p>
+<p>如果 consumer group 中的 consumer 都订阅了同一个 topic，会进入 constrainedAssign() 方法这个分支，走优化算法。constrainedAssign() 方法的核心步骤是：</p>
+<p><strong>1、</strong> 执行一些准备工作，例如：</p>
+<ul>
+<li>计算每个 consumer 能够分配的最大 partition 数（maxQuota）和最小 partition 数（minQuota）</li>
+<li>用来存储分配 partition 已达上限的 consumer 的集合（maxCapacityMembers 集合）</li>
+<li>用来存储分配 partition 已达下限的 consumer 的集合（minCapacityMembers 集合）</li>
+<li>用来存储分配 partition 未达下限的 consumer 的集合（unfilledMembers 集合）。</li>
+<li>存储全部未分配的 TopicPartition 的 unassignedPartitions 集合。</li>
+<li>存储从任意 consumer revoke 回来的 TopicPartition 的 allRevokedPartitions 集合。</li>
+<li>存储最终分配结果的 assignment 集合（<code>Map&lt;String, List&lt;TopicPartition&gt;&gt;</code>）。</li>
+</ul>
+<p><strong>2、</strong> 根据 consumerToOwnedPartitions 重新分配 partition，分配出去的 partition 将从 unassignedPartitions 中删除：</p>
+<ul>
+<li>碰到 TopicPartition 数超过 maxQuota 的 consumer，多出来的 TopicPartition 进入 allRevokedPartitions 集合。</li>
+<li>碰到 TopicPartition 数不足 minQuota 的 consumer，consumer 进入 unfilledMembers 集合。</li>
+<li>碰到 TopicPartition 数等于 maxQuota 或 minQuota 的consumer，consumer 进入 maxCapacityMembers 或 minCapacityMembers 集合。</li>
+</ul>
+<p><strong>3、</strong> 如果 unfilledMembers、unassignedPartitions 两个集合不为空，则表示同时有未达标的 consumer 和未分配的 partition，开始将 unassignedPartitions 中的 TopicPartition 分配给 unfilledMembers 中的 consumer。</p>
+<p><strong>4、</strong> 如果 unfilledMembers 还不为空，说明给 maxCapacityMembers 集合中 consumer 分配 partition 分多了，就要开始从 maxCapacityMembers 的 consumer 那里偷 partition 了，但是要有个限度，不能把原来的 maxCapacityMembers 的 consumer 薅到 minQuota 以下。</p>
+<p><strong>5、</strong> 最后，来处理 unfilledMembers 为空，但是 unassignedPartitions 不为空的情况，这说明 minCapacityMembers 里面有太多 consumer 摸鱼，这里就要将 unassignedPartitions 中 partition 分配给 minCapacityMembers 中的摸鱼 consumer，提高他们的负载，但是也是有上限的，给他们分配再多，不能超过 maxQuato。</p>
+<p>经过上面的这一通处理，assignment 集合就是最终的分配结果了。</p>
+<p>如果 consumer group 中的 consumer 并没有订阅了同一个 topic，会进入 generalAssign() 方法这个分支。generalAssign() 方法涉及到的核心数据结构如下：</p>
+<ul>
+<li> <strong>consumer2AllPotentialPartitions</strong>（<code>Map&lt;String, List&lt;TopicPartition&gt;&gt;</code>）、<strong>partition2AllPotentialConsumers</strong>（<code>Map&lt;TopicPartition, List&lt;String&gt;&gt;</code>），因为 consumer group 中的 consumer 订阅的 topic 不同，所以需要记录每个 consumer 能分配哪些 TopicPartition（consumer2AllPotentialPartitions），每个 TopicPartition 能分配给哪些 consumer（partition2AllPotentialConsumers） 。</li>
+<li><strong>partitionsPerTopic</strong>: 每个 topic 有多少过 partition。</li>
+<li><strong>subscriptions</strong>：每个 consumer 订阅了哪些 topic。</li>
+<li><strong>currentAssignment</strong>（<code>Map&lt;TopicPartition, ConsumerGenerationPair&gt;</code>）记录了当前每个 consumer 分配的 partition 集合（就是此轮 rebalance 开始之前的 partition 分配结果）。后面会基于这个集合，得出此轮 rebalance 的结果。</li>
+<li><strong>currentPartitionConsumer</strong>：记录了当前每个 Partition 分配给了哪个 Consumer，其实就是这个集合的翻转 currentAssignment （即 consumer –&gt; <code>List&lt;TopicPartition&gt;</code> 转成了 TopicPartition –&gt; consumer）。</li>
+<li><strong>sortedPartitions</strong>：TopicPartition 的有序集合，排序规则是按照 TopicPartition 能分配给多少 consumer 顺序排的。</li>
+<li><strong>unassignedPartitions</strong>：记录还未分配出去的 TopicPartition。</li>
+<li><strong>sortedCurrentSubscriptions</strong>：consumer 的有序集合，排序规则是按照目前已分配的 partition 数进行排序的。</li>
+<li><strong>reassignablePartitions</strong>：可重新分配的 TopicPartition 集合，</li>
+<li><strong>fixedPartitions</strong>：不可重新分配的 TopicPartition 集合。</li>
+<li><strong>fixedAssignments</strong>：不可修改其分配结果的 consumer 集合。</li>
+</ul>
+<p>generalAssign() 算法的核心步骤如下：</p>
+<p>1、更新 <em><strong>currentAssignment</strong></em> 集合，这里会删除不存在的 consumer 和 TopicPartition。</p>
+<p>2、分配 <em><strong>unassignedPartitions</strong></em> 集合中的 TopicPartition：这里会按照 <strong>sortedCurrentSubscriptions</strong> 集合的顺序分配 TopicPartition（当然，前提是 consumer 订阅了这个 TopicPartition）。这一轮操作下来之后，可能还有 TopicPartition 未分配出去，也可能有 consumer 没有分配任何 TopicPartition。</p>
+<p>3、查询分配结果不能修改分配结果的 consumer，将这些 consumer 记录到 <strong>fixedAssignments</strong> 集合，同时将这些 consumer 从 <strong>currentAssignment</strong> 集合删除。（缩小问题范围）</p>
+<p>4、接下来按照 <strong>sortedPartitions</strong> 集合的顺序，处理可以重新分配的 TopicPartition。如果移动一个 TopicPartition 可以提高整体的平衡性的话，就进行移动，直至达到 balance 的状态。</p>
+<p>5、如果在步骤 4 中移动了 TopicPartition，但是没有提高平衡性（ <em>balance score</em>）的话，就需要根据黏性条件，决定是否回滚到原来的分配结果。</p>
+<p>6、最后，将 <strong>fixedAssignments</strong> 中记录的 consumer 重新添加回 <strong>currentAssignment</strong> 集合。</p>
+<p>在 generalAssign() 方法中判断一次分配结果是否平衡的结果有两个：</p>
+<ul>
+<li>consumer 分配的 TopicPartition 数量只差不超过 1。</li>
+<li>不存在重新分配 TopicPartition 提高平衡性的可能。这里平衡性（balance score）的计算方式是：所有 consumer 分配的 TopicPartition 数量的差值，这个差值越小，分配结果越平衡。</li>
+</ul>
+<p>StickyAssignor 的算法核心与 AbstractStickyAssignor 一致，StickyAssignor 实现了序列化和反序列化 MemebrData 的方法，以及 onAssignment() 方法，这些方法没有什么难度，这里不展开了。</p>
+<h3 id="CooperativeStickyAssignor"><a href="#CooperativeStickyAssignor" class="headerlink" title="CooperativeStickyAssignor"></a>CooperativeStickyAssignor</h3><p>CooperativeStickyAssignor 与 StickyAssignor 一样，都继承了 AbstractStickyAssignor 抽象类，其 assign() 方法首先会调用 super.assign() 方法完成 partition 分配。在分配过程中，如果一个 TopicPartition 发生了迁移（也就是更换了 consumer），则将该 TopicPartition 记录到 partitionsTransferringOwnership 集合中。最后，调用 adjustAssignment() 方法从分配结果中删除 partitionsTransferringOwnership 集合，从而满足 Incremental Cooperative Rebalancing 协议的需求。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本课时重点介绍了 kafka consumer 中 partition 分配策略的具体实现。下一课时开始介绍 KafkaConsumer 的核心实现。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
@@ -214,307 +330,125 @@
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=http://example.com/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" class="archive-article-date">
-  	<time datetime="2021-05-26T14:50:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-26</time>
-</a>
+<nav id="article-nav">
+  
+    <a href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          8、深潜kafka-consumer3
+        
+      </div>
+    </a>
+  
+  
+    <a href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">6、深潜kafka-consumer——consumer rebalance 协议详解</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/">6、深潜kafka-consumer——consumer rebalance 协议详解</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#ConsumerPartitionAssignor"><span class="toc-number">1.</span> <span class="toc-text">ConsumerPartitionAssignor</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#RangeAssignor"><span class="toc-number">1.1.</span> <span class="toc-text">RangeAssignor</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RoundRobinAssignor"><span class="toc-number">1.2.</span> <span class="toc-text">RoundRobinAssignor</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#StickyAssignor"><span class="toc-number">1.3.</span> <span class="toc-text">StickyAssignor</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%B7%E4%BD%93%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90"><span class="toc-number">1.3.1.</span> <span class="toc-text">具体实现分析</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CooperativeStickyAssignor"><span class="toc-number">1.4.</span> <span class="toc-text">CooperativeStickyAssignor</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">2.</span> <span class="toc-text">总结</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
         </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/uncategorized/kafka%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F/" class="archive-article-date">
-  	<time datetime="2021-05-21T06:52:17.355Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-21</time>
-</a>
-        </div>
-    	 
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/" class="archive-article-date">
-  	<time datetime="2021-05-10T06:27:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-10</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/">5、深潜KafkaProducer——Sender线程</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/" class="archive-article-date">
-  	<time datetime="2021-05-09T14:19:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-09</time>
-</a>
-        </div>
-    	 
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/">4、深潜KafkaProducer —— RecordAccumulator</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/" class="archive-article-date">
-  	<time datetime="2021-05-08T06:37:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/">1、两数之和</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/" class="archive-article-date">
-  	<time datetime="2021-05-08T06:30:50.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/">0、杨四正的力扣习题课目录</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/" class="archive-article-date">
-  	<time datetime="2021-05-07T08:47:02.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-07</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">3、深潜KafkaProducer —— 核心架构</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" class="archive-article-date">
-  	<time datetime="2021-05-06T09:02:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-06</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">2、kafka_2.8.0源码环境搭建</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
-
-    
-    <nav id="page-nav">
-      <span class="page-number current">1</span><a class="page-number" href="/archives/page/2/">2</a><a class="extend next" rel="next" href="/archives/page/2/">Next &amp;raquo;</a>
-    </nav>
   
 
 
@@ -535,8 +469,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,

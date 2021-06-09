@@ -6,15 +6,25 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="http://example.com">
-  <title>Archives | 杨四正的源码剖析课</title>
+  <title>8、深潜kafka-consumer3 | 杨四正的源码剖析课</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="杨四正的源码剖析课">
-<meta property="og:url" content="http://example.com/archives/index.html">
+  <meta name="description" content="Consumer 基础入门在 Kafka Clients 模块中不仅提供了前面介绍的 KafkaProducer，还提供了 KafkaConsumer 的实现，核心实现位于 org.apache.kafka.clients.consumer 包中。 废话不多说了，先来看一下 KafkaConsumer 的基础使用：  1234567891011121314151617181920212223242">
+<meta property="og:type" content="article">
+<meta property="og:title" content="8、深潜kafka-consumer3">
+<meta property="og:url" content="http://example.com/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/index.html">
 <meta property="og:site_name" content="杨四正的源码剖析课">
+<meta property="og:description" content="Consumer 基础入门在 Kafka Clients 模块中不仅提供了前面介绍的 KafkaProducer，还提供了 KafkaConsumer 的实现，核心实现位于 org.apache.kafka.clients.consumer 包中。 废话不多说了，先来看一下 KafkaConsumer 的基础使用：  1234567891011121314151617181920212223242">
 <meta property="og:locale">
+<meta property="og:image" content="http://example.com/Users/xxx/source/hexo/source/_posts/1%E3%80%81ConsumerNetworkClient%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png">
+<meta property="og:image" content="http://example.com/Users/xxx/source/hexo/source/_posts/2%E3%80%81PollCondition%E6%8E%A5%E5%8F%A3%E5%AE%9E%E7%8E%B0.png">
+<meta property="og:image" content="http://example.com/Users/xxx/source/hexo/source/_posts/3%E3%80%81SubscriptionState%E5%AD%97%E6%AE%B5.png">
+<meta property="og:image" content="http://example.com/Users/xxx/source/hexo/source/_posts/4%E3%80%81TopicPartitionState%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png">
+<meta property="og:image" content="http://example.com/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/5%E3%80%81AbstractCoordinator%E5%AD%97%E6%AE%B5.png">
+<meta property="article:published_time" content="2021-06-07T12:56:56.000Z">
+<meta property="article:modified_time" content="2021-06-08T00:27:58.967Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/Users/xxx/source/hexo/source/_posts/1%E3%80%81ConsumerNetworkClient%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png">
   
     <link rel="alternative" href="/atom.xml" title="杨四正的源码剖析课" type="application/atom+xml">
   
@@ -144,377 +154,254 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
+            <article id="post-8、深潜kafka-consumer3" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
   
+    <h1 class="article-title" itemprop="name">
+      8、深潜kafka-consumer3
+    </h1>
   
-    
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2021" class="archive-year">2021</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" class="archive-article-date">
+
+        
+        <a href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" class="archive-article-date">
   	<time datetime="2021-06-07T12:56:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-07</time>
 </a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/">8、深潜kafka-consumer3</a>
-    </h1>
-  
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="Consumer-基础入门"><a href="#Consumer-基础入门" class="headerlink" title="Consumer 基础入门"></a>Consumer 基础入门</h2><p>在 Kafka Clients 模块中不仅提供了前面介绍的 KafkaProducer，还提供了 KafkaConsumer 的实现，核心实现位于 org.apache.kafka.clients.consumer 包中。</p>
+<p>废话不多说了，先来看一下 KafkaConsumer 的基础使用： </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ConsumerDemo</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Properties props = <span class="keyword">new</span> Properties();</span><br><span class="line">        <span class="comment">// kafka集群地址       </span></span><br><span class="line">        props.put(<span class="string">&quot;bootstrap.servers&quot;</span>, <span class="string">&quot;localhost:9092&quot;</span>);</span><br><span class="line">        <span class="comment">// 所属Consumer Group的Id</span></span><br><span class="line">        props.put(<span class="string">&quot;group.id&quot;</span>, <span class="string">&quot;consumer-demo&quot;</span>);</span><br><span class="line">        <span class="comment">// 自动提交offset</span></span><br><span class="line">        props.put(<span class="string">&quot;enable.auto.commit&quot;</span>, <span class="string">&quot;true&quot;</span>);</span><br><span class="line">        <span class="comment">// 自动提交offset的时间间隔</span></span><br><span class="line">        props.put(<span class="string">&quot;auto.commit.interval.ms&quot;</span>, <span class="string">&quot;1000&quot;</span>);</span><br><span class="line">        props.put(<span class="string">&quot;session.timeout.ms&quot;</span>, <span class="string">&quot;30000&quot;</span>);</span><br><span class="line">        <span class="comment">// key和value使用的Deserializer</span></span><br><span class="line">        props.put(<span class="string">&quot;key.deserializer&quot;</span>, </span><br><span class="line">                  <span class="string">&quot;org.apache.kafka.common.serialization.StringDeserializer&quot;</span>);</span><br><span class="line">        props.put(<span class="string">&quot;value.deserializer&quot;</span>, </span><br><span class="line">                  <span class="string">&quot;org.apache.kafka.common.serialization.StringDeserializer&quot;</span>);</span><br><span class="line">        <span class="comment">// 根据上面的配置创建KafkaConsumer对象</span></span><br><span class="line">        KafkaConsumer&lt;String, String&gt; consumer = <span class="keyword">new</span> KafkaConsumer&lt;&gt;(props);</span><br><span class="line">        <span class="comment">// 同时订阅test_topic1和test_topic2</span></span><br><span class="line">        consumer.subscribe(Arrays.asList(<span class="string">&quot;test_topic1&quot;</span>, <span class="string">&quot;test_topic2&quot;</span>));</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">                <span class="comment">// 从kafka集群拉取message，每次poll()可以拉取多个消息</span></span><br><span class="line">                ConsumerRecords&lt;String, String&gt; records = consumer.poll(<span class="number">100</span>);</span><br><span class="line">                <span class="comment">// 消费message，这里将消息的offset、key、value输出</span></span><br><span class="line">                <span class="keyword">for</span> (ConsumerRecord&lt;String, String&gt; record : records)</span><br><span class="line">                    System.out.printf(<span class="string">&quot;offset = %d, key = %s, value = %s\n&quot;</span>, </span><br><span class="line">                                     record.offset(), record.key(), record.value());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// 关闭Consumer</span></span><br><span class="line">            consumer.close();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-        <div class="article-info info-on-right">
-          
-          
+<p>我们可以通过前文介绍的 ProducerDemo 发送 message，然后使用上面的 ConsumerDemo 来消费 message，这里就不再展示效果了。</p>
+<h2 id="Consumer-接口"><a href="#Consumer-接口" class="headerlink" title="Consumer 接口"></a>Consumer 接口</h2><p>了解了 KafkaConsumer 的基本使用之后，我们来看 KafkaConsumer 的具体实现，首先是其实现的接口 —— Consumer，对 Consumer 接口中方法进行分类之后，我们可以得到如下三大类：</p>
+<ul>
+<li>拉取元数据（查 topic、partition、offset）：<ul>
+<li>listTopics() 方法：查询 kafka 集群中全部 topic 的元信息。</li>
+<li>partitionsFor() 方法：查询指定 topic 的元数据。</li>
+<li>groupMetadata() 方法：查询当前 consumer group 的元信息。</li>
+<li>beginningOffsets() 方法、endOffsets() 方法：查询指定 partition 的最小 offset 值（因为日志压缩和日志保留策略的存在，所以最小 offset 不一定是 0）以及最大 offset 值。</li>
+<li>offsetsForTimes() 方法：根据时间戳查询指定 partition 中的 offset 值，返回 offset 值是大于指定时间的最小 offset（<code>earliest offset whose timestamp is greater than or equal to the given timestamp in the corresponding partition</code>）。</li>
+</ul>
+</li>
+<li>控制消费行为：<ul>
+<li>assign(<code>Collection&lt;TopicPartition&gt;</code>) 方法：用来手动给 consumer 分配其订阅的 topic 以及 partition 集合，该方法与 subscribe() 方法冲突。</li>
+<li>subscribe()方法：订阅指定的 topic，后续将由 kafka 集群通过 rebalance 协议为 consumer 自动分配 partition。 </li>
+<li>commit()、commitAsync() 方法：提交（异步提交）当前 consumer 的消费位置（也就是其已消费完成的 message 的 offset 值），默认情况下，consumer 的消费位置存储在 <code>__consumer_offsets</code> 这个特殊的 topic 中。</li>
+<li>poll() 方法：从当前 consumer 负责消费的 partition 中批量拉取 message。</li>
+<li>seek(TopicPartition)方法：指定 consumer 从指定 partition 的哪个 offset 位置开始后续消费。</li>
+<li>pause()、resume()方法：暂停/继续 consumer，暂停后 poll() 方法会返回集合。</li>
+</ul>
+</li>
+<li>获取消费装填：<ul>
+<li>assignment()：查询当前 consumer 消费的 partition。</li>
+<li>position(TopicPartition) 方法：获取 consumer 下次从指定 partition 拉取的 message 的 offset 值。</li>
+<li>committed() 方法：当前 consumer group 在指定 partition 的消费位置 。</li>
+</ul>
+</li>
+</ul>
+<h2 id="ConsumerNetworkClient"><a href="#ConsumerNetworkClient" class="headerlink" title="ConsumerNetworkClient"></a>ConsumerNetworkClient</h2><p>在前面介绍 KafkaProducer 的时候详细介绍了 NetworkClient 的实现，它负责管理 Producer 与 kafka 集群中各个 broker 之间的网络连接，底层依赖 KSelector 来完成网络读写操作，通过一系列 handle*() 方法处理正常响应、超时以及网络异常等。</p>
+<p>ConsumerNetworkClient 是专门为 Consumer 端提供的客户端，它底层依赖 NetworkClient 的上述功能来完成网络操作。依旧本着是先看数据结构，再看行为的思路，来看 ConsumerNetworkClient 的核心字段，如下：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/1%E3%80%81ConsumerNetworkClient%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png"></p>
+<h3 id="send"><a href="#send" class="headerlink" title="send"></a>send</h3><p>作为一个 Client，ConsumerNetworkClient 自然提供了发送请求的方法 —— send() 方法，它会将待发送的请求封装成ClientRequest 对象，保存到unsent集合中等待发送，具体实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> RequestFuture&lt;ClientResponse&gt; <span class="title">send</span><span class="params">(Node node, AbstractRequest.Builder&lt;?&gt; requestBuilder,</span></span></span><br><span class="line"><span class="function"><span class="params">				<span class="keyword">int</span> requestTimeoutMs)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">long</span> now = time.milliseconds();</span><br><span class="line">    <span class="comment">// RequestFutureCompletionHandler是ConsumerNetworkClient中定义的一个内部类，实现了RequestCompletionHandler接口</span></span><br><span class="line">    RequestFutureCompletionHandler completionHandler = <span class="keyword">new</span> RequestFutureCompletionHandler();</span><br><span class="line">    <span class="comment">// 创建ClientRequest对象</span></span><br><span class="line">    ClientRequest clientRequest = client.newClientRequest(node.idString(), requestBuilder, </span><br><span class="line">					now, <span class="keyword">true</span>, requestTimeoutMs, completionHandler);</span><br><span class="line">    <span class="comment">// 将ClientRequest对象写入到unsent中相应的队列中</span></span><br><span class="line">    unsent.put(node, clientRequest);</span><br><span class="line">    <span class="comment">// 唤醒在NetworkClient.poll()方法上阻塞等待网络事件的线程</span></span><br><span class="line">    client.wakeup();</span><br><span class="line">    <span class="comment">// 返回RequestFuture</span></span><br><span class="line">    <span class="keyword">return</span> completionHandler.future;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
+<p>我们可以看到，这里创建 ClientRequest 时指定的 callback 对象是 <strong>RequestFutureCompletionHandler</strong>，其中关联了发送请求对应的 RequestFuture 对象（future 字段）， ClientResponse 对象（response 字段）以及相关的 RuntimeException（e 字段）。在其 onComplete() 方法中，会初始化 ClientResponse 对象并将当前 <strong>RequestFutureCompletionHandler</strong> 对象添加到 <strong>pendingCompletion</strong> 集合；onFailure() 方法中会初始化 Exception 并将当前 <strong>RequestFutureCompletionHandler</strong> 对象添加到 <strong>pendingCompletion</strong> 集合。</p>
+<p>RequestFutureCompletionHandler 中的 future 字段是 <strong>RequestFuture</strong> 类型， RequestFuture 是 ConsumerNetworkClient 发出的一个异步请求的 Future 对象，其中的 result 字段（<code>AtomicReference&lt;Object&gt;</code> 类型）用来记录请求结果（具体 result 类型由 RequestFuture 的泛型指定），completedLatch 字段（CountDownLatch）用来实现 RequestFuture 的 awaitDone() 方法的阻塞效果，listeners 集合记录了（ConcurrentLinkedQueue）用来记录相关监听器。</p>
+<p>在 RequestFutureCompletionHandler.fireCompletion() 方法中会根据 e 字段调用 RequestFuture 的相应方法，完成（或异常完成）该 RequestFuture，关闭 completedLatch，唤醒阻塞在其上的线程。</p>
+<p>RequestFuture 中的方法都比较简单，熟悉 JDK Future 的胖友应该都能看懂。这里说一下 RequestFuture 中两个有意思的方法，一个是 compose(RequestFutureAdapter) 方法，它主要是将当前 RequestFuture 对象转换成另一个 RequestFuture 对象，目的是为了转换 result 类型，具体实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;S&gt; <span class="function">RequestFuture&lt;S&gt; <span class="title">compose</span><span class="params">(<span class="keyword">final</span> RequestFutureAdapter&lt;T, S&gt; adapter)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 创建一个新的RequestFuture对象</span></span><br><span class="line">    <span class="keyword">final</span> RequestFuture&lt;S&gt; adapted = <span class="keyword">new</span> RequestFuture&lt;&gt;();</span><br><span class="line">    <span class="comment">// 添加一个监听器，当前RequestFuture完成的时候，会通过该监听器触发新的RequestFuture完成</span></span><br><span class="line">    addListener(<span class="keyword">new</span> RequestFutureListener&lt;T&gt;() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">(T value)</span> </span>&#123;</span><br><span class="line">            adapter.onSuccess(value, adapted);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onFailure</span><span class="params">(RuntimeException e)</span> </span>&#123;</span><br><span class="line">            adapter.onFailure(e, adapted);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">return</span> adapted; <span class="comment">// 返回新的RequestFuture</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>另一处是 chain() 方法，它是为了将多个有依赖关系的 RequestFuture 组成一个责任链，具体实现原理与 compose() 方法类似，也是通过监听器的方式实现的。</p>
+<h3 id="poll"><a href="#poll" class="headerlink" title="poll"></a>poll</h3><p>ConsumerNetworkClient 中最核心的方法是 poll(Timer timer, PollCondition pollCondition, boolean disableWakeup) 方法，这三个参数的含义如下：</p>
+<ul>
+<li><p>timer（Timer 类型）：Timer 是一个辅助类，用来帮助 NetworkClient.poll() 方法这种阻塞的方法计算超时时间。</p>
+</li>
+<li><p>pollCondition（PollCondition 类型）：PollCondition 类似于一个钩子方法，通过外部提供的 shouldBlock() 钩子方法来控制 ConsumerNetworkClient.poll() 是否该进行阻塞。这里说一下 PollCondition 接口，它只有两个实现：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/2%E3%80%81PollCondition%E6%8E%A5%E5%8F%A3%E5%AE%9E%E7%8E%B0.png"></p>
+<p>RequestFuture 中的 shouldBlock() 方法实际就是 !isDone() 方法，也就是说，我们在 ConsumerNetworkClient.poll() 方法中根据某个请求的状态，决定是否阻塞等待其响应。</p>
+</li>
+<li><p>disableWakeup（boolean 类型）：标识此次 poll() 方法是否是可被唤醒的，也就是，是否关注 wakeup 字段的值。如果 disableWakeup 字段设置为 true，则在 poll() 方法中不会关注 wakeup 字段值；如果设置为 false，则 wakeup 为 true，则抛出 WakeupException 并退出此次 poll() 方法调用。</p>
+</li>
+</ul>
+<p>好了，下面来看 poll() 方法的核心逻辑：</p>
+<p><strong>1、</strong> 加锁，ConsumerNetworkClient 是线程安全，毕竟有很多线程会并发使用 ConsumerNetworkClient 这个对象来发送请求并接收响应。</p>
+<p><strong>2、</strong> 执行 handlePendingDisconnects() 方法处理 pendingDisconnects 集合，此处会清理 UnsentRequests 中每个 Node 对应的 ClientRequest 集合，并触发每个 ClientRequest 关联的 RequestFutureCompletionHandler 的 onFailure() 方法。同时，还会调用 NetworkClient 的 disconnect() 方法，清理 InFlightRequests 集合并触发相关回调。</p>
+<p><strong>3、</strong> 执行 trySend() 方法，尝试发送 unsent 集合中的请求。具体逻辑是：遍历每个 Node 对应的 ClientRequest 列表，每次循环都调用 NetworkClient.ready() 方法检测当前是否具备发送条件，其中包括网络连接状态、InFlightRequests 队列状态等等。检测通过之后，则调用 NetworkClient.send() 方法将请求放入InFlightRequests 队里中等待响应，也放入 KafkaChannel 的 send 字段中等待发送。同时，会将请求从 unsent 中删除。</p>
+<p><strong>4、</strong> 接下来根据条件决定 NetworkClient.poll() 方法的阻塞时长，这里的条件有两个：</p>
+<ul>
+<li>pendingCompletion 集合是否为空，如果不为空，则表示有 RequestFutureCompletionHandler 等待执行，所以阻塞时长为 0。</li>
+<li>pollCondition.shouldBlock() 这个钩子方法的返回值，如果返回 false，则表示无需阻塞。其实就是看自己关注的请求是否已经完成了。</li>
+</ul>
+<p><strong>5、</strong> 在 NetworkClient.poll() 方法中会更新连接状态，在 poll() 方法结束之后，这里会再次检查连接状态并更新处理 unsent 集合中未发送的请求，具体逻辑与步骤1基本一致，不再重复。</p>
+<p><strong>6、</strong> 检查 disableWakeup、wakeup，决定是否抛出 WakeupException 异常。检查当前线程是否被中断，如果被中断了，则抛出 InterruptException 异常。</p>
+<p><strong>7、</strong> 再次调用 trySend() 方法，之所以再次调用 trySend() 方法，是因为经历了一次 poll() 之后，可能有的连接、InFlightRequests 等条件准备好了。</p>
+<p><strong>8、</strong> 调用 failExpiredRequests() 方法处理 unsent 集合中过期的请求，这里会调用过期请求关联的 RequestFutureCompletionHandler.onFailure() 方法。</p>
+<p><strong>9、</strong> 清空 unsent 集合。</p>
+<p><strong>10、</strong> 执行 firePendingCompletedRequests() 方法，触发 pendingCompletion 集合中全部的 RequestFutureCompletionHandler，这里不仅仅会完成 RequestFuture，还会触发注册在其上的监听器。</p>
+<h3 id="其他方法简介"><a href="#其他方法简介" class="headerlink" title="其他方法简介"></a>其他方法简介</h3><ul>
+<li>awaitMetadataUpdate()方法：循环调用 poll() 方法，直到 Metadata 更新完毕（版本号增加），实现阻塞等待Metadata 更新完成。</li>
+<li>awaitPendingRequests()方法：阻塞等待 unsent 和 InFightRequests 中的请求全部完成（正常完成或异常完成都可以）。</li>
+<li>leastLoadedNode() 方法：查找 kafka 集群中负载最低的Node。</li>
+<li>hasReadyNodes() 方法：查询当前 kafka 集群是否有 Node 可以发送请求。</li>
+<li>disconnectAsync() 方法：关闭与指定 Node 的连接，这里会写入 pendingDisconnects 集合，并调用 NetworkClient 的 wakeup() 方法，尽快处理断开的连接。</li>
+</ul>
+<h2 id="SubscriptionState"><a href="#SubscriptionState" class="headerlink" title="SubscriptionState"></a>SubscriptionState</h2><p>通过前面的介绍我们知道，在 consumer 启动之后会经历 rebalance 来确定自己消费的 partition，紧接着 consumer 会从 <code>__consumer_offsets</code> 这个内部 topic 拉取 offset 确认自己从哪个位置开始消费。</p>
+<p>KafkaConsumer 在内存中使用 SubscriptionState 来维护自身消费的 topic、partition 以及 offset。下面来看 SubscriptionState 的核心字段：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/3%E3%80%81SubscriptionState%E5%AD%97%E6%AE%B5.png"></p>
+<p>这里我们来关注一下 assignment 字段，TopicPartitionState 用来记录当前 consumer 消费对应 partition 的消费状态，核心字段如下：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/4%E3%80%81TopicPartitionState%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png"></p>
+<p>TopicPartitionState 提供了非常多的方法来读写上述字段，这里不再展开，没啥难度。</p>
+<p>接下来看 PartitionStates，其中最核心的就是 map 字段（LinkedHashMap 类型），其中的 Key 是 TopicPartition，Value 是 TopicPartitionState，这里之所以使用 LinkedHashMap 类型的 Map，是为了更新 TopicPartition 的顺序，保证 Fetch  Request 不会出现饥饿的状态，胖友们可以看一下 updateAndMoveToEnd() 、moveToEnd() 方法，都是用来调整 TopicPartition 消费状态顺序的。另外，PartitionStates 中提供了一些其他的方法都是用来读写 map 集合，不再多说。</p>
+<p>到此为止，SubscriptionState 的核心数据结构就介绍完了。SubscriptionState 本身提供的行为基本都是用来修改上述字段的，这里不再展开了。</p>
+<h2 id="ConsumerCoordinator"><a href="#ConsumerCoordinator" class="headerlink" title="ConsumerCoordinator"></a>ConsumerCoordinator</h2><p>在 KafkaConsumer 中通过 ConsumerCoordinator 实现与服务端的 GroupCoordinator 的完成 rebalance 协议中的一系列交互，ConsumerCoordinator 继承了 AbstractCoordinator 抽象类。AbstractCoordinator 的核心字段如下：</p>
+<p><img src="5%E3%80%81AbstractCoordinator%E5%AD%97%E6%AE%B5.png"></p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
+        </div>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=http://example.com/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" class="archive-article-date">
-  	<time datetime="2021-06-02T12:35:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-02</time>
-</a>
+<nav id="article-nav">
+  
+  
+    <a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">7、深潜kafka consumer —— consumer</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/">7、深潜kafka consumer —— consumer</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Consumer-%E5%9F%BA%E7%A1%80%E5%85%A5%E9%97%A8"><span class="toc-number">1.</span> <span class="toc-text">Consumer 基础入门</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Consumer-%E6%8E%A5%E5%8F%A3"><span class="toc-number">2.</span> <span class="toc-text">Consumer 接口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ConsumerNetworkClient"><span class="toc-number">3.</span> <span class="toc-text">ConsumerNetworkClient</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#send"><span class="toc-number">3.1.</span> <span class="toc-text">send</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#poll"><span class="toc-number">3.2.</span> <span class="toc-text">poll</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B6%E4%BB%96%E6%96%B9%E6%B3%95%E7%AE%80%E4%BB%8B"><span class="toc-number">3.3.</span> <span class="toc-text">其他方法简介</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#SubscriptionState"><span class="toc-number">4.</span> <span class="toc-text">SubscriptionState</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ConsumerCoordinator"><span class="toc-number">5.</span> <span class="toc-text">ConsumerCoordinator</span></a></li></ol>
+                    </div>
+                </span>
+            </div>
         </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" class="archive-article-date">
-  	<time datetime="2021-05-26T14:50:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/">6、深潜kafka-consumer——consumer rebalance 协议详解</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/uncategorized/kafka%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F/" class="archive-article-date">
-  	<time datetime="2021-05-21T06:52:17.355Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-21</time>
-</a>
-        </div>
-    	 
-        <div class="article-info info-on-right">
-          
-          
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/" class="archive-article-date">
-  	<time datetime="2021-05-10T06:27:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-10</time>
-</a>
-        </div>
-    	 
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/">5、深潜KafkaProducer——Sender线程</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/" class="archive-article-date">
-  	<time datetime="2021-05-09T14:19:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-09</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/">4、深潜KafkaProducer —— RecordAccumulator</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/" class="archive-article-date">
-  	<time datetime="2021-05-08T06:37:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/">1、两数之和</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/" class="archive-article-date">
-  	<time datetime="2021-05-08T06:30:50.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/">0、杨四正的力扣习题课目录</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/" class="archive-article-date">
-  	<time datetime="2021-05-07T08:47:02.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-07</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">3、深潜KafkaProducer —— 核心架构</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" class="archive-article-date">
-  	<time datetime="2021-05-06T09:02:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-06</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">2、kafka_2.8.0源码环境搭建</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
-
-    
-    <nav id="page-nav">
-      <span class="page-number current">1</span><a class="page-number" href="/archives/page/2/">2</a><a class="extend next" rel="next" href="/archives/page/2/">Next &amp;raquo;</a>
-    </nav>
   
 
 
@@ -535,8 +422,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,

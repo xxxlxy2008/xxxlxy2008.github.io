@@ -6,15 +6,35 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="http://example.com">
-  <title>Archives | 杨四正的源码剖析课</title>
+  <title>6、深潜kafka-consumer——consumer rebalance 协议详解 | 杨四正的源码剖析课</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="杨四正的源码剖析课">
-<meta property="og:url" content="http://example.com/archives/index.html">
+  <meta name="description" content="consumer group rebalance 原理在开始分析 KafkaConsumer 的具体实现之前，我们先来介绍一下 KafkaConsumer 涉及到的一些基础理论。在第一课时介绍 Consumer Group 时提到，对于同一个 Consumer Group 来说，同一个 Topic 的不同 partition 会分配给不同的 consumer 进行消费，那如何分配 partitio">
+<meta property="og:type" content="article">
+<meta property="og:title" content="6、深潜kafka-consumer——consumer rebalance 协议详解">
+<meta property="og:url" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/index.html">
 <meta property="og:site_name" content="杨四正的源码剖析课">
+<meta property="og:description" content="consumer group rebalance 原理在开始分析 KafkaConsumer 的具体实现之前，我们先来介绍一下 KafkaConsumer 涉及到的一些基础理论。在第一课时介绍 Consumer Group 时提到，对于同一个 Consumer Group 来说，同一个 Topic 的不同 partition 会分配给不同的 consumer 进行消费，那如何分配 partitio">
 <meta property="og:locale">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/1%E3%80%81Zookeeper%E7%BB%93%E6%9E%84%E5%9B%BE.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/2%E3%80%81JoinGroup%E8%AF%B7%E6%B1%82.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/3%E3%80%81JoinGroupResponse.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/4%E3%80%81SyncRequest.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/5%E3%80%81SyncResponse.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/6%E3%80%81heartbeat.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/7%E3%80%81LeaveRequest.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/8%E3%80%81FullGc.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/9%E3%80%81eager%E6%9C%AC%E8%B4%A8.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/10%E3%80%81increment.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/11%E3%80%81join.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/12%E3%80%81bounces.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/13%E3%80%81always_leave.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/14%E3%80%81%E6%96%B0%E5%8D%8F%E8%AE%AE%E6%80%BB%E7%BB%93.png">
+<meta property="og:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg">
+<meta property="article:published_time" content="2021-05-26T14:50:14.000Z">
+<meta property="article:modified_time" content="2021-06-07T15:04:12.579Z">
 <meta property="article:author" content="杨四正">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/1%E3%80%81Zookeeper%E7%BB%93%E6%9E%84%E5%9B%BE.png">
   
     <link rel="alternative" href="/atom.xml" title="杨四正的源码剖析课" type="application/atom+xml">
   
@@ -144,102 +164,259 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-6、深潜kafka-consumer1" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2021" class="archive-year">2021</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" class="archive-article-date">
-  	<time datetime="2021-06-07T12:56:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-07</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/">8、深潜kafka-consumer3</a>
+    <h1 class="article-title" itemprop="name">
+      6、深潜kafka-consumer——consumer rebalance 协议详解
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" class="archive-article-date">
-  	<time datetime="2021-06-02T12:35:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-02</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/">7、深潜kafka consumer —— consumer</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" class="archive-article-date">
+        
+        <a href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" class="archive-article-date">
   	<time datetime="2021-05-26T14:50:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-26</time>
 </a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/">6、深潜kafka-consumer——consumer rebalance 协议详解</a>
-    </h1>
-  
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="consumer-group-rebalance-原理"><a href="#consumer-group-rebalance-原理" class="headerlink" title="consumer group rebalance 原理"></a>consumer group rebalance 原理</h2><p>在开始分析 KafkaConsumer 的具体实现之前，我们先来介绍一下 KafkaConsumer 涉及到的一些基础理论。在第一课时介绍 Consumer Group 时提到，对于同一个 Consumer Group 来说，同一个 Topic 的不同 partition 会分配给不同的 consumer 进行消费，那如何分配 partition，如何在有新 consumer 加入以及 consumer 宕机的时候重新分配 partition，就是我们说的 consumer group rebalance。</p>
+<span id="more"></span>
 
-        <div class="article-info info-on-right">
-          
-          
+<h3 id="初始方案"><a href="#初始方案" class="headerlink" title="初始方案"></a>初始方案</h3><p>在 Kafka 最初始的解决方案中，是依赖 Zookeeper 的 Watcher 实现的。该方案中，每个 Consumer Group 在 Zookeeper 下都维护了一个对应的 <code>/consumers/&#123;group_id&#125;/ids</code> 路径，该路径下使用临时节点记录该 Consumer Group 中的 Consumer Id，这个 Consumer Id 临时节点在 Consumer 启动时创建。另外，kafka 还会创建 <code>owners</code> 和 <code>offsets</code> 两个节点，这两个节点与 <code>ids</code> 节点同级，其中 <code>owners</code> 记录了 consumer 与 partition 的分配关系；<code>offsets</code> 节点用来记录了对应 Consumer Group 在相应 partition 上的消费位置。</p>
+<p>除了 consumer group 相关的 Zookeeper 节点之外，kafka 还会在 Zookeeper 上维护集群的元数据，如下图所示：</p>
+<p><img src="1%E3%80%81Zookeeper%E7%BB%93%E6%9E%84%E5%9B%BE.png"></p>
+<p>每个 Consumer 都会在 <code>/consumers/&#123;group_id&#125;/ids</code> 和 <code>/brokers/ids</code> 节点上注册一个 Watcher，当 <code>/consumers/&#123;group_id&#125;/ids</code> 的子节点发生变化时，表示 Consumer Group中的消费者出现了变化；当 <code>/brokers/ids</code> 子节点发生变化时，表示 kafka 集群中的 broker 出现了增减。通过上述两个 Watcher，consumer 就可以监控 Consumer Group 状态以及 Kafka 集群的状态了。</p>
+<p>原理上，该方案是可行的，但是重度依赖于 Zookeeper 集群，这就会导致一些问题：</p>
+<ul>
+<li><p>当 consumer 很多的时候，一个 consumer 或是一个 broker 的变化（加入、退出 consumer group或 broker 重启），就会导致全部 consumer 被通知，这个时候，很多 consumer 并不关心这个事件，过多无用的 Watcher 通知会给 Zookeeper 集群带来压力，也会给 consumer 带来压力。</p>
+</li>
+<li><p>每个 consumer 都依赖 Zookeeper 集群来判断 Consumer Group 状态、Broker 的状态，但是不同 consumer 在同一时刻可能连接到 Zookeeper 集群的不同节点，由于Zookeeper 只保证 <code>最终一致性</code>（不保证强一致性），那不同 consumer 看到的元数据就可能不一样，这就会造成多余的 Reblance 操作。</p>
+</li>
+</ul>
+<h3 id="Eager-Rebalance-Protocol"><a href="#Eager-Rebalance-Protocol" class="headerlink" title="Eager Rebalance Protocol"></a>Eager Rebalance Protocol</h3><p>为了解决上述问题，Kafka 在后续版本对 Rebalance 方案进行了改进（也就是 Eager Rebalance Protocol），改进方案的核心设计思想是：将全部的 consumer group 分成多个子集，每个 consumer group 集合在 broker 对应一个 GroupCoordinator，由 GroupCoordinator 管理对应 consumer groups 的 rebalance（每个 broker 都拥有成为 GroupCoordinator 的能力）。</p>
+<p>kafka 通过加一层 GroupCoordinator 的方式，让所有 consumer 不再直接依赖 Zookeeper，而是靠 GroupCoordinator 在Zookeeper 上添加 Watcher。下面简单描述一下该升级方案的 rebalance 流程：</p>
+<p><strong>1、</strong> 当前 consumer 准备加入 consumer group 或 GroupCoordinator发生故障转移时，consumer 并不知道GroupCoordinator 的 host 和 port，所以 consumer 会向 Kafka 集群中的任一 broker 节点发送 FindCoordinatorRequest 请求，收到请求的 broker 节点会返回 ConsumerMetadataResponse 响应，其中就包含了负责管理该 Consumer Group 的 GroupCoordinator 的地址。</p>
+<p><strong>2、</strong> 接下来，consumer 会连接到 GroupCoordinator 节点，并周期性的发送心跳请求。GroupCoordinator 会通过心跳消费确定 consumer 是否正常在线，长时间收不到一个心跳信息时，GroupCoordinator 会认为 consumer 宕机了，就会为该 consumer group 触发新一轮的 Rebalance 操作。</p>
+<p><strong>3、</strong> 在 consumer 收到中带有 IllegalGeneration 异常的心跳响应时，就表明 GroupCoordinator 发起了 Rebalance 操作。此时 consumer 会向 GroupCoordinator 发送 JoinGroupRequest ，向 GroupCoordinator 表明自己要加入指定的Consumer Group。</p>
+<p><strong>4、</strong> GroupCoordinator 等待一个 consumer group 中全部 consumer 都发送了 JoinGroupRequest 请求之后，就会结合Zookeeper 中的 partition 的元数据，进行 partition 的分配。</p>
+<p><strong>5、</strong> GroupCoordinator 在分配完 partition 之后，会将 partition 与 consumer 之间的映射关系写入到 Zookeeper 中保存，同时还会将分配结果通过 JoinGroupResponse 返回给 consumer。</p>
+<p><strong>6、</strong> consumer 根据根据 JoinGroupResponse 响应中的分配结果消费对应的 partition，同时会定时发送HeartbeatRequest 请求表明自己在线。如果后续出现 consumer 加入或下线、broker 上下线、partition 增加等状况时，GroupCoordinator 返回的 HeartbeatResponse 会包含 IllegalGeneration 异常，接下来就会进入步骤3。</p>
+<p>上述方案看起来已经比较完美的了，但是有个问题是 rebalance 的策略是在  GroupCoordinator 中实现的，扩展性上多多少少有点问题，当我们要使用新 rebalance 策略时，需要修改 GroupCoordinator 的行为。</p>
+<h3 id="Eager-Rebalance-Protocol-升级"><a href="#Eager-Rebalance-Protocol-升级" class="headerlink" title="Eager Rebalance Protocol 升级"></a>Eager Rebalance Protocol 升级</h3><p>为了解决上述问题，Kafka 0.9 版本中进行了重新设计，将 partition 分配的工作放到了 consumer 这一端进行处理，Consumer Group 管理的工作则依然由GroupCoordinator 处理。</p>
+<p>该版本的 rebalance 协议将 JoinGroupRequest 的处理过程拆分成了两个阶段，分别是 Join Group 阶段和 Synchronizing Group State 阶段。</p>
+<p><strong>1、</strong> 当 consumer 通过 FindCoordinatorRequest 查找到其 Consumer Group 对应的 GroupCoordinator 之后，就会进入 Join Group 阶段。下面是 FindCoordinatorRequest 和 FindCoordinatorResponse 的具体格式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// FindCoordinator请求结构</span></span><br><span class="line"><span class="function">FindCoordinator <span class="title">Request</span> <span class="params">(Version: <span class="number">3</span>)</span> </span>=&gt; key key_type TAG_BUFFER </span><br><span class="line">  key =&gt; COMPACT_STRING <span class="comment">// The coordinator key.</span></span><br><span class="line">  key_type =&gt; INT8 <span class="comment">// The coordinator key type. (Group, transaction, etc.) 后面再说这两种类型，知道是个唯一标识就行了</span></span><br><span class="line">  </span><br><span class="line"><span class="comment">// FindCoordinator响应结构</span></span><br><span class="line"><span class="function">FindCoordinator <span class="title">Response</span> <span class="params">(Version: <span class="number">3</span>)</span> </span>=&gt; throttle_time_ms error_code error_message node_id host port TAG_BUFFER </span><br><span class="line">  throttle_time_ms =&gt; INT32 <span class="comment">// The duration in milliseconds for which the request was throttled due to a quota violation, or zero if the request did not violate any quota.</span></span><br><span class="line">  error_code =&gt; INT16 <span class="comment">// The error code, or 0 if there was no error.</span></span><br><span class="line">  error_message =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The error message, or null if there was no error.</span></span><br><span class="line">  node_id =&gt; INT32 <span class="comment">// The node id. GroupCoordinator所在的nodeId以及hostName、port</span></span><br><span class="line">  host =&gt; COMPACT_STRING <span class="comment">// The host name.</span></span><br><span class="line">  port =&gt; INT32 <span class="comment">// The port.</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>2、</strong> Consumer 先向 GroupCoordinator 发送 JoinGroupRequest 请求，其中包含 consumer 的相关信息，如下图所示：</p>
+<p><img src="2%E3%80%81JoinGroup%E8%AF%B7%E6%B1%82.png"></p>
+<p>下面是 JoinGroupRequest 的格式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">JoinGroup <span class="title">Request</span> <span class="params">(Version: <span class="number">7</span>)</span> </span>=&gt; group_id session_timeout_ms rebalance_timeout_ms member_id group_instance_id protocol_type [protocols] TAG_BUFFER </span><br><span class="line">  group_id =&gt; COMPACT_STRING <span class="comment">// The group identifier.</span></span><br><span class="line">  session_timeout_ms =&gt; INT32 <span class="comment">// The coordinator considers the consumer dead if it receives no heartbeat after this timeout in milliseconds.</span></span><br><span class="line">  rebalance_timeout_ms =&gt; INT32 <span class="comment">// The maximum time in milliseconds that the coordinator will wait for each member to rejoin when rebalancing the group.</span></span><br><span class="line">  member_id =&gt; COMPACT_STRING <span class="comment">// The member id assigned by the group coordinator.</span></span><br><span class="line">  group_instance_id =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The unique identifier of the consumer instance provided by end user.</span></span><br><span class="line">  protocol_type =&gt; COMPACT_STRING <span class="comment">// The unique name the for class of protocols implemented by the group we want to join.</span></span><br><span class="line">  protocols =&gt; name metadata TAG_BUFFER <span class="comment">// The list of protocols that the member supports.</span></span><br><span class="line">    name =&gt; COMPACT_STRING <span class="comment">// The protocol name.</span></span><br><span class="line">    metadata =&gt; COMPACT_BYTES <span class="comment">// The protocol metadata.</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>3、</strong> GroupCoordinator 收到 JoinGroupRequest 后会暂存该 consumer 信息，然后等待全部 consumer 的 JoinGroupRequest 请求。JoinGroup Request 中的  <code>session.timeout.ms</code> 和 <code>rebalance_timeout_ms</code>（ <code>max.poll.interval.ms</code>）是就是用来告诉 GroupCoordinator 等待多久的。</p>
+<p><strong>4、</strong> GroupCoordinator 会根据全部 consumer 的 JoinGroupRequest 请求来确定 Consumer Group 中可用的 consumer，从中选取一个 consumer 成为 Group Leader，同时还会决定 partition 分配策略，最后会将这些信息封装成JoinGroupResponse 返回给 Group Leader Consumer，下面是 JoinGroupResponse 的具体格式。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">JoinGroup <span class="title">Response</span> <span class="params">(Version: <span class="number">7</span>)</span> </span>=&gt; throttle_time_ms error_code generation_id protocol_type protocol_name leader member_id [members] TAG_BUFFER </span><br><span class="line">  throttle_time_ms =&gt; INT32 <span class="comment">// The duration in milliseconds for which the request was throttled due to a quota violation, or zero if the request did not violate any quota.</span></span><br><span class="line">  error_code =&gt; INT16 <span class="comment">// The error code, or 0 if there was no error.</span></span><br><span class="line">  generation_id =&gt; INT32 <span class="comment">// The generation ID of the group.</span></span><br><span class="line">  protocol_type =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group protocol name.</span></span><br><span class="line">  protocol_name =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group protocol selected by the coordinator.</span></span><br><span class="line">  leader =&gt; COMPACT_STRING <span class="comment">// The leader of the group.</span></span><br><span class="line">  member_id =&gt; COMPACT_STRING <span class="comment">// The member ID assigned by the group coordinator.</span></span><br><span class="line">  members =&gt; member_id group_instance_id metadata TAG_BUFFER </span><br><span class="line">    member_id =&gt; COMPACT_STRING <span class="comment">// The group member ID.</span></span><br><span class="line">    group_instance_id =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The unique identifier of the consumer instance provided by end user.</span></span><br><span class="line">    metadata =&gt; COMPACT_BYTES <span class="comment">// The group member metadata.</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>5、</strong> 每个 consumer 都会收到 JoinGroupResponse 响应，但是只有 Group Leader 收到的 JoinGroupResponse 响应中封装的所有 consumer 信息以及 Group Leader 信息。当其中一个 consumer 确定了自己的 Group Leader后，会根据 consumer 信息、kafka 集群元数据以及 partition 分配策略计算 partition 的分片结果。其他非 Group Leader consumer 收到 JoinResponse 为空响应，也就不会进行任何操作，只是原地等待。</p>
+<p><img src="3%E3%80%81JoinGroupResponse.png"></p>
+<p><strong>6、</strong> 接下来，所有 consumer 进入 Synchronizing Group State 阶段，所有 consumer 会向 GroupCoordinator 发送 SyncGroupRequest。其中，Group Leader Consumer 的 SyncGroupRequest 请求包含了 partition 分配结果，普通 consumer 的 SyncGroupRequest 为空请求。</p>
+<p><img src="4%E3%80%81SyncRequest.png"></p>
+<p>SyncGroup Request 请求的格式如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">SyncGroup <span class="title">Request</span> <span class="params">(Version: <span class="number">5</span>)</span> </span>=&gt; group_id generation_id member_id group_instance_id protocol_type protocol_name [assignments] TAG_BUFFER </span><br><span class="line">  group_id =&gt; COMPACT_STRING <span class="comment">// The unique group identifier.</span></span><br><span class="line">  generation_id =&gt; INT32 <span class="comment">// The generation of the group.</span></span><br><span class="line">  member_id =&gt; COMPACT_STRING <span class="comment">// The member ID assigned by the group.</span></span><br><span class="line">  group_instance_id =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The unique identifier of the consumer instance provided by end user.</span></span><br><span class="line">  protocol_type =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group protocol type.</span></span><br><span class="line">  protocol_name =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group protocol name.</span></span><br><span class="line">  assignments =&gt; member_id assignment TAG_BUFFER  <span class="comment">//Each assignment.</span></span><br><span class="line">    member_id =&gt; COMPACT_STRING <span class="comment">// The ID of the member to assign.</span></span><br><span class="line">    assignment =&gt; COMPACT_BYTES <span class="comment">// The member assignment.</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>7、</strong> GroupCoordinator 接下来会将 partition 分配结果封装成 SyncGroupResponse 返回给所有 consumer。</p>
+<p><img src="5%E3%80%81SyncResponse.png"></p>
+<p>SyncResponse 的格式如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">SyncGroup <span class="title">Response</span> <span class="params">(Version: <span class="number">5</span>)</span> </span>=&gt; throttle_time_ms error_code protocol_type protocol_name assignment TAG_BUFFER </span><br><span class="line">  throttle_time_ms =&gt; INT32 <span class="comment">// The duration in milliseconds for which the request was throttled due to a quota violation, or zero if the request did not violate any quota.</span></span><br><span class="line">  error_code =&gt; INT16 <span class="comment">// The error code, or 0 if there was no error.</span></span><br><span class="line">  protocol_type =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group protocol type.</span></span><br><span class="line">  protocol_name =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group protocol name.</span></span><br><span class="line">  assignment =&gt; COMPACT_BYTES <span class="comment">// The member assignment.</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>8、</strong> consumer 收到 SyncGroupResponse 后进行解析，就可以明确 partition 与 consumer 的映射关系。</p>
+<p><strong>8、</strong> 当然，后续 consumer 还是会与 GroupCoordinator 保持定期的心跳。触发 rebalance 的条件也是心跳响应中包含 IllegalGeneration 异常。</p>
+<p><img src="6%E3%80%81heartbeat.png"></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Heartbeat <span class="title">Request</span> <span class="params">(Version: <span class="number">4</span>)</span> </span>=&gt; group_id generation_id member_id group_instance_id TAG_BUFFER </span><br><span class="line">  group_id =&gt; COMPACT_STRING <span class="comment">// The group id.</span></span><br><span class="line">  generation_id =&gt; INT32 <span class="comment">// The generation of the group.</span></span><br><span class="line">  member_id =&gt; COMPACT_STRING <span class="comment">// The member ID.</span></span><br><span class="line">  group_instance_id =&gt; COMPACT_NULLABLE_STRING <span class="comment">//The unique identifier of the consumer instance provided by end user.</span></span><br><span class="line">  </span><br><span class="line"><span class="function">Heartbeat <span class="title">Response</span> <span class="params">(Version: <span class="number">4</span>)</span> </span>=&gt; throttle_time_ms error_code TAG_BUFFER </span><br><span class="line">  throttle_time_ms =&gt; INT32 <span class="comment">// The duration in milliseconds for which the request was throttled due to a quota violation, or zero if the request did not violate any quota.</span></span><br><span class="line">  error_code =&gt; INT16 <span class="comment">// The error code, or 0 if there was no error.</span></span><br></pre></td></tr></table></figure>
+
+<p>很明显，这次 rebalance 协议的升级是将 rebalance 的行为迁移到了 consumer 端，也就解决了 <code>Eager Rebalance Protocol</code> 最开始版本中的扩展性问题。</p>
+<h3 id="Stop-The-World"><a href="#Stop-The-World" class="headerlink" title="Stop The World"></a>Stop The World</h3><p>在 Eager Rebalance Protocol 中都存在一个比较严重的问题，那就是长时间的 <code>Stop The World</code>，也就是在整个 rebalance 的过程中，所有 partition 都会被 <code>回收</code>（revoke），consumer 是无法消费任何 partition 的。</p>
+<p>例如，有一个 consumer 退出 consumer group 时，会发送 LeaveGroup Request 请求到 GroupCoordinator，如下图所示：</p>
+<p><img src="7%E3%80%81LeaveRequest.png"></p>
+<p>LeaveGroup Request 的格式如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">LeaveGroup <span class="title">Request</span> <span class="params">(Version: <span class="number">4</span>)</span> </span>=&gt; group_id [members] TAG_BUFFER </span><br><span class="line">  group_id =&gt; COMPACT_STRING <span class="comment">// The ID of the group to leave.</span></span><br><span class="line">  members =&gt; member_id group_instance_id TAG_BUFFER  <span class="comment">//List of leaving member identities.</span></span><br><span class="line">    member_id =&gt; COMPACT_STRING <span class="comment">// The member ID to remove from the group.</span></span><br><span class="line">    group_instance_id =&gt; COMPACT_NULLABLE_STRING <span class="comment">// The group instance ID to remove from the group.</span></span><br></pre></td></tr></table></figure>
+
+<p>GroupCoordinator 将会在下个心跳响应中通知 consumer group 中剩余的 consumer 进行新一轮的 rebalance。在新一轮的 rebalance 完成之前，剩余的 consumer 都不会消费任何 message。有新 consumer 加入 consumer group 也是一样。</p>
+<p>在实际生产中发布 consumer 是非常常见的操作，这样的话，每个consumer 实例的更新都会导致两次上述的 rebalance 操作，影响整个 consumer group 消费。</p>
+<p>还有一个问题就是 consumer 出现长 GC 的时候，如下图所示，此时 GroupCoordinator 会因为长时间收不到 consumer 心跳，认为 consumer 下线，触发 rebalance。</p>
+<p><img src="8%E3%80%81FullGc.png"></p>
+<h3 id="Static-Membership"><a href="#Static-Membership" class="headerlink" title="Static Membership"></a>Static Membership</h3><p>为了解决上述问题，kafka 在 2.3 版本中引入了 Static Membership 协议，相关 <a target="_blank" rel="noopener" href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-345%3A+Introduce+static+membership+protocol+to+reduce+consumer+rebalances">JIRA 参考</a>。</p>
+<p>Static Membership 优化协议的核心是：</p>
+<ul>
+<li>在 consumer 端增加 <code>group.instance.id</code>  配置（<code>group.instance.id</code> 是 consumer 的唯一标识）。如果 consumer 启动的时候明确指定了 <code>group.instance.id</code> 配置值，consumer 会在 JoinGroup Request 中携带该值，表示该 consumer 为 static member。 为了保证 <code>group.instance.id</code> 的唯一性，我们可以考虑使用 hostname、ip 等。</li>
+<li>在 GroupCoordinator 端会记录 group.instance.id → member.id 的映射关系，以及已有的 partition 分配关系。当 GroupCoordinator 收到已知 group.instance.id 的 consumer 的 JoinGroup Request 时，不会进行 rebalance，而是将其原来对应的 partition 分配给它。</li>
+</ul>
+<p>Static Membership 协议可以让 consumer group 只在下面的 4 种情况下进行 rebalance：</p>
+<ul>
+<li>有新 consumer 加入 consumer group 时。</li>
+<li>Group Leader 重新加入 Group 时。</li>
+<li>consumer 下线时间超过阈值（ <code>session.timeout.ms</code>）</li>
+<li>GroupCoordinator 收到 static member 的 LeaveGroup Request 时。</li>
+</ul>
+<p>这样的话，在使用 Static Membership 协议的场景下，只要在 consumer 重新部署的时候，不发送 LeaveGroup Request 且在 <code>session.timeout.ms</code> 时长内重启成功，就不会触发 rebalance。</p>
+<h3 id="Incremental-Cooperative-Rebalance"><a href="#Incremental-Cooperative-Rebalance" class="headerlink" title="Incremental Cooperative Rebalance"></a>Incremental Cooperative Rebalance</h3><p>在 kafka 2.4 版本中，为了进一步减少 rebalance 带来的 <code>Stop The World</code>，提出了 <code>Incremental Cooperative Rebalance</code> 协议。其核心思想就是使用将一次全局的 rebalance，改成多次小规模 rebalance，最终收敛到 rebalance 的状态。</p>
+<p>在开始介绍 Incremental Cooperative Rebalance 协议之前，我们先来明确 Eager Rebalance 协议中回收（revoke）全部 partition 的根本原因 —— 一个 partition 只能分配给一个 consumer。如下图所示，Eager Rebalance 协议中，consumer 为了满足这个要求，在发送 JoinGroup Request 的时候就停止了所有 partition 的消费，直至收到 SyncGroup Response（也就是收到新的 partition 分配结果之后）。如果将分布式系统简化成一个多线程应用，整个 rebalance 过程就类似于一个内存屏障（Sync Barrier），用来同步所有 consumer 的状态。</p>
+<p><img src="9%E3%80%81eager%E6%9C%AC%E8%B4%A8.png"></p>
+<p>说明完 rebalance 的本质之后，我们开始正式介绍 Incremental Cooperative Rebalance 协议，该协议最核心的思想就是：</p>
+<ul>
+<li>consumer 比较新旧两个 partition 分配结果，只停止消费回收（revoke）的 partition，对于两次都分配给自己的 partition，consumer 根本没有必要停止消费，这也就解决了 <code>Stop The World</code> 的问题。</li>
+<li>通过多轮的局部 rebalance 来最终实现全局的 rebalance。下面会通过示例说明每轮 rebalance 都做了什么。</li>
+</ul>
+<p><img src="10%E3%80%81increment.png"></p>
+<p>上图就展示了一个 consumer 在一次 rebalance 中比较操作： <code>owned partitions</code>和 <code>assigned partitions</code> 分别是该 consumer 在 rebalance 前后要处理的 partition 集合，其中，consumer 在整个 rebalance 过程中无需停止对 <code>unchanged partitions</code> 集合中 partition 的消费。</p>
+<p>介绍完 Incremental Cooperative Rebalance 协议的核心思想之后，我们通过示例来说明 Incremental Cooperative Rebalance 协议的工作原理。</p>
+<h4 id="A-New-Consumer-Joins"><a href="#A-New-Consumer-Joins" class="headerlink" title="A New Consumer Joins"></a>A New Consumer Joins</h4><p><img src="11%E3%80%81join.png"></p>
+<p>如上图所示，当前有 consumer 1 和 consumer 2，分别消费 P1 ~ P3、P4~P6，6个 partition，此时 consumer3 加入到 consumer group 中，触发第一轮 rebalance：</p>
+<ul>
+<li><p>consumer 3 会向 GroupCoordinator 发送 JoinGroupRequest 触发第一轮 rebalance。</p>
+</li>
+<li><p>GroupCoordinator 会在下一轮心跳响应中通知 consumer 1 和 consumer 2 需要进行 rebalance。</p>
+</li>
+<li><p>consumer 1 和 consumer 2 会将自己当前正在处理的 partition 信息封装到 JoinGroup Request 中（metadata 字段）发往 GroupCoordinator：</p>
+<ul>
+<li>consumer 1 发送的 JoinGroup Request（assigned: P1、P2、P3）</li>
+<li>consumer 2 发送的 JoinGroup Request（assigned: P4、P5、P6）。</li>
+<li>consumer 3 发送的 JoinGroup Request（assigned: ）。</li>
+</ul>
+<p><strong>此时的 consumer 1 和 consumer 2 并不会停止对 partition 的消费。</strong></p>
+</li>
+<li><p>经过 GroupCoordinator 处理之后，此次选举 consumer 1 作为 Group Leader，GroupCoordinator 发送给 consumer 1 的 JoinGroup Response 中同样包含各个 consumer 目前处理的 partition 信息：c1 ( P1、P2、P3 )，c2 (  P4、P5、P6)。</p>
+</li>
+<li><p>consumer 1 在进行 partition 分配的时候发现有三个 consumer 参与，决定把 P1、P2 继续分配给 consumer 1，P3 回收（revoke）；把 P4、P5 继续分配给 consumer 2，P6 回收。consumer 1 在完成上述分配之后，会将分配结果封装成 SyncGroup Request 发送给 GroupCoordinator。</p>
+</li>
+<li><p>GroupCoordinator 会根据 consumer 1 的 SyncGroup Request，生成 SyncGroup Response 返回给三个 consumer：</p>
+<ul>
+<li>consumer 1 收到的 SyncGroup Response（assigned: P1、P2，revoked：P3）</li>
+<li>consumer 2 收到的 SyncGroup Response（assigned: P4、P5，revoked：P6）。</li>
+<li>consumer 3 收到的 SyncGroup Response（assigned: ，revoked：）。</li>
+</ul>
+<p><strong>到此为止，第一轮 rebalance 结束，</strong>在第一轮 rebalance 的过程中，consumer 1 依旧在消费 P1、P2、P3，consumer 2 依旧在消费 P4、P5、P6。</p>
+</li>
+<li><p>在 consumer 1 和 consumer 2 收到包含 revoked 的 SyncGroup Response 之后，会<strong>立刻停止对 P3 和 P6 的消费，并立即发起第二轮 rebalance。</strong></p>
+<ul>
+<li>consumer 1 发送的 JoinGroup Request（assigned: P1、P2）</li>
+<li>consumer 2 发送的 JoinGroup Request（assigned: P4、P5）。</li>
+<li>consumer 3 发送的 JoinGroup Request（assigned: ）。</li>
+</ul>
+</li>
+<li><p>接下来，GroupCoordinator 将收到的全部 JoinGroup Request 整理后，将目前的分配关系封装到 JoinGroup Response 中返回给 Group Leader（这里假设还是 consumer 1），其他非 Group Leader 的 consumer 得到空 JoinGroup Response。</p>
+</li>
+<li><p>consumer 1 此时发现该 topic 有 P1 到 P6 六个 partition，但目前 partition 只分配了 4 个 partition，还有一个 consumer 空闲，自然会选择将 P3、P6 分给 consumer 3。</p>
+</li>
+<li><p>经过 SyncGroup Request、SyncGruop Response 的交互之后：</p>
+<ul>
+<li>consumer 1 收到的 SyncGroup Response（assigned: P1、P2，revoked：）</li>
+<li>consumer 2 收到的 SyncGroup Response（assigned: P4、P5，revoked：）。</li>
+<li>consumer 3 收到的 SyncGroup Response（assigned: P3、P6 ，revoked：）。</li>
+</ul>
+<p><strong>在 consumer 3 收到该 SyncGroup Response 之后，会立刻开始消费 P3、P6。到此为止，第二轮 rebalance 结束，整个 rebalance 也完成了</strong>。</p>
+</li>
+</ul>
+<h4 id="An-Existing-Consumer-Bounces"><a href="#An-Existing-Consumer-Bounces" class="headerlink" title="An Existing Consumer Bounces"></a>An Existing Consumer Bounces</h4><p><img src="12%E3%80%81bounces.png"></p>
+<p>如上图所示，当前有三个 consumer，consumer 2 离开 consumer group 且离开时间超过了 session.timeout 时长，此时 GroupCoordinator 会触发第一轮 rebalance。</p>
+<ul>
+<li><p>首先，GroupCoordinator 会在下一轮心跳响应中通知 consumer 1 和 consumer 3 <strong>发起第一轮 rebalance</strong>。</p>
+</li>
+<li><p>consumer 1 和 consumer 3 会将自己当前正在处理的 partition 信息封装到 JoinGroup Request 中（metadata 字段）发往 GroupCoordinator：</p>
+<ul>
+<li>consumer 1 发送的 JoinGroup Request（assigned: P1、P2）</li>
+<li>consumer 3 发送的 JoinGroup Request（assigned: P3、P6）。</li>
+</ul>
+</li>
+<li><p>假设 GroupCoordinator 在这里选择  consumer 1 作为 Group Leader，GroupCoordinator 会将 partition 目前的分配状态通过 JoinGroup Response 发送给 consumer 1。</p>
+</li>
+<li><p>consumer 1 发现 P4、P5 两个 partition 并未出现（处于 lost 状态），此时 consumer 1 并不会立即解决当前的不平衡问题，返回的 partition 分配结果不变（同时会携带一个 delay 时间，<code>scheduled.rebalance.max.delay.ms</code>，默认 5 分钟）。GroupCoordinator 会根据 consumer 1 的 SyncGroup Request，生成 SyncGroup Response 返回给两个存活的 consumer：</p>
+<ul>
+<li>consumer 1 收到的 SyncGroup Response（delay，assigned: P1、P2，revoked：）</li>
+<li>consumer 3 收到的 SyncGroup Response（delay，assigned: P3、P6，revoked：）。</li>
+</ul>
+<p><strong>到此为止，第一轮 rebalance 结束</strong>。整个 rebalance 过程中，consumer 1 和 consumer 3 并不会停止消费。</p>
+</li>
+<li><p>在 <code>scheduled.rebalance.max.delay.ms</code> 这个时间段内，consumer 2 故障恢复，重新加入到 consumer group 时，会向 GroupCoordinator 发送 JoinGroup Request，<strong>触发第二轮的 rebalance</strong>。GroupCoordinator 在下一次心跳响应中会通知 consumer 1 和 consumer 3 参与第二轮 rebalance。</p>
+</li>
+<li><p>consumer 1 和 consumer 3 在收到心跳之后，会发送 JoinGroup Request 参与第二轮 rebalance：</p>
+<ul>
+<li>consumer 1 发送的 JoinGroup Request（assigned: P1、P2）</li>
+<li>consumer 3 发送的 JoinGroup Request（assigned: P3、P6）。</li>
+</ul>
+</li>
+<li><p>在此次第二轮 rebalance 中，consumer 1 依旧被选为 Group Leader，它会发现 delay 的时间（<code>scheduled.rebalance.max.delay.ms</code>）是否已经到了，如果没到，则依旧不会立即解决当前的不平衡问题，继续返回目前的分配结果：</p>
+<ul>
+<li>consumer 1 收到的 SyncGroup Response（remaining delay，assigned: P1、P2，revoked：）</li>
+<li>consumer 2 收到的 SyncGroup Response（remaining delay，assigned:，revoked：）</li>
+<li>consumer 3 收到的 SyncGroup Response（remaining delay，assigned: P3、P6，revoked：）。</li>
+</ul>
+<p>我们看到返回的 SyncGroup Response 中更新了 delay 的剩余时间（remaining delay = delay - pass_time）。<strong>到此为止，第二轮 rebalance 结束</strong>。整个 rebalance 过程中，consumer 1 和 consumer 3 并不会停止消费。</p>
+</li>
+<li><p>当 remaining delay 时间到期之后，consumer 全部重新送 JoinGroup Request，<strong>触发第三轮 rebalance：</strong></p>
+<ul>
+<li>consumer 1 发送的 JoinGroup Request（assigned: P1、P2）</li>
+<li>consumer 2 发送的 JoinGroup Request（assigned: ）</li>
+<li>consumer 3 发送的 JoinGroup Request（assigned: P3、P6）。</li>
+</ul>
+</li>
+<li><p>在此次 rebalance 中，consumer 1 依旧被选为 Group Leader，它会发现 delay 已经到期了，开始解决不平衡的问题，对 partition 进行重新分配。最新的分配结果最终通过 SyncGroup Response 返回到各个 consumer：</p>
+<ul>
+<li>consumer 1 收到的 SyncGroup Response（assigned：P1、P2，revoked：）</li>
+<li>consumer 2 收到的 SyncGroup Response（assigned：P4、P5，revoked：）</li>
+<li>consumer 3 收到的 SyncGroup Response（assigned：P3、P6，revoked：）。</li>
+</ul>
+<p><strong>到此为止，第三轮 rebalance 结束</strong>。整个 rebalance 过程中，consumer 1 和 consumer 3 的消费都不会停止。</p>
+</li>
+</ul>
+<h4 id="An-existing-worker-leaves-permanently"><a href="#An-existing-worker-leaves-permanently" class="headerlink" title="An existing worker leaves permanently"></a>An existing worker leaves permanently</h4><p><img src="13%E3%80%81always_leave.png"></p>
+<p>如上图所示，依旧是三个 consumer，其中的 consumer 2 退出了 consumer group，与上面介绍的重启（bounces）场景不同的是：consumer 2 是退出 consumer group 的时间超过了 <code>scheduled.rebalance.max.delay.ms</code> 的值，其他 consumer 会认为其永久退出了，直接进行上图中第二轮 rebalance，处理不均衡的情况，这里就不再重复了。</p>
+<p>最后，我们深入 <code>Incremental Cooperative Rebalance</code> 协议本质，如下图所示，它是使用多轮 rebalance 的方式来实现 Syncchronization Barrier 的效果，也就保证了不会一次回收（revoke）全部 consumer 的全部 partition，从而避免 <code>Stop The World</code>。</p>
+<p><img src="14%E3%80%81%E6%96%B0%E5%8D%8F%E8%AE%AE%E6%80%BB%E7%BB%93.png"></p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>本课时重点介绍了 consumer group rebalance 协议的演进和各个版本协议的原理。</p>
+<p>下一课时将正式开始分析 kafka consumer 的代码。</p>
+<p>本课时相关文档和视频会同步到：</p>
+<ul>
+<li><p>微信订阅号：杨四正</p>
+<p><img src="%E4%BA%8C%E7%BB%B4%E7%A0%81.jpg"></p>
+</li>
+<li><p>B站：杨四正</p>
+</li>
+</ul>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
@@ -252,269 +429,125 @@
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=http://example.com/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/uncategorized/kafka%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F/" class="archive-article-date">
-  	<time datetime="2021-05-21T06:52:17.355Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-21</time>
-</a>
+<nav id="article-nav">
+  
+    <a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          7、深潜kafka consumer —— consumer
+        
+      </div>
+    </a>
+  
+  
+    <a href="/uncategorized/kafka%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title"></div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-        <div class="article-info info-on-right">
-          
-          
-
+        
+        
+        <div class="toc-container tooltip-left">
+            <i class="icon-font icon-category"></i>
+            <div class="tooltip tooltip-east">
+                <span class="tooltip-item">
+                </span>
+                <span class="tooltip-content">
+                    <div class="toc-article">
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#consumer-group-rebalance-%E5%8E%9F%E7%90%86"><span class="toc-number">1.</span> <span class="toc-text">consumer group rebalance 原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%9D%E5%A7%8B%E6%96%B9%E6%A1%88"><span class="toc-number">1.1.</span> <span class="toc-text">初始方案</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Eager-Rebalance-Protocol"><span class="toc-number">1.2.</span> <span class="toc-text">Eager Rebalance Protocol</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Eager-Rebalance-Protocol-%E5%8D%87%E7%BA%A7"><span class="toc-number">1.3.</span> <span class="toc-text">Eager Rebalance Protocol 升级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Stop-The-World"><span class="toc-number">1.4.</span> <span class="toc-text">Stop The World</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Static-Membership"><span class="toc-number">1.5.</span> <span class="toc-text">Static Membership</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Incremental-Cooperative-Rebalance"><span class="toc-number">1.6.</span> <span class="toc-text">Incremental Cooperative Rebalance</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#A-New-Consumer-Joins"><span class="toc-number">1.6.1.</span> <span class="toc-text">A New Consumer Joins</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#An-Existing-Consumer-Bounces"><span class="toc-number">1.6.2.</span> <span class="toc-text">An Existing Consumer Bounces</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#An-existing-worker-leaves-permanently"><span class="toc-number">1.6.3.</span> <span class="toc-text">An existing worker leaves permanently</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">1.7.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+                    </div>
+                </span>
+            </div>
         </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/" class="archive-article-date">
-  	<time datetime="2021-05-10T06:27:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-10</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/5%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer3/">5、深潜KafkaProducer——Sender线程</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/" class="archive-article-date">
-  	<time datetime="2021-05-09T14:19:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-09</time>
-</a>
-        </div>
-    	 
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/">4、深潜KafkaProducer —— RecordAccumulator</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/" class="archive-article-date">
-  	<time datetime="2021-05-08T06:37:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/leetcode/1%E3%80%81%E4%B8%A4%E6%95%B0%E4%B9%8B%E5%92%8C/">1、两数之和</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/" class="archive-article-date">
-  	<time datetime="2021-05-08T06:30:50.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/leetcode/0%E3%80%81%E6%9D%A8%E5%9B%9B%E6%AD%A3%E7%9A%84%E5%8A%9B%E6%89%A3%E4%B9%A0%E9%A2%98%E8%AF%BE%E7%9B%AE%E5%BD%95/">0、杨四正的力扣习题课目录</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/leetcode//" class="article-tag-list-link color4">leetcode</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/" class="archive-article-date">
-  	<time datetime="2021-05-07T08:47:02.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-07</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/">3、深潜KafkaProducer —— 核心架构</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" class="archive-article-date">
-  	<time datetime="2021-05-06T09:02:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-06</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">2、kafka_2.8.0源码环境搭建</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
-
-    
-    <nav id="page-nav">
-      <span class="page-number current">1</span><a class="page-number" href="/archives/page/2/">2</a><a class="extend next" rel="next" href="/archives/page/2/">Next &amp;raquo;</a>
-    </nav>
   
 
 
@@ -535,8 +568,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,

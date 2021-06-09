@@ -146,6 +146,421 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-8、深潜kafka-consumer3" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/">8、深潜kafka-consumer3</a>
+    </h1>
+  
+
+        
+        <a href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/" class="archive-article-date">
+  	<time datetime="2021-06-07T12:56:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-07</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="Consumer-基础入门"><a href="#Consumer-基础入门" class="headerlink" title="Consumer 基础入门"></a>Consumer 基础入门</h2><p>在 Kafka Clients 模块中不仅提供了前面介绍的 KafkaProducer，还提供了 KafkaConsumer 的实现，核心实现位于 org.apache.kafka.clients.consumer 包中。</p>
+<p>废话不多说了，先来看一下 KafkaConsumer 的基础使用： </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ConsumerDemo</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Properties props = <span class="keyword">new</span> Properties();</span><br><span class="line">        <span class="comment">// kafka集群地址       </span></span><br><span class="line">        props.put(<span class="string">&quot;bootstrap.servers&quot;</span>, <span class="string">&quot;localhost:9092&quot;</span>);</span><br><span class="line">        <span class="comment">// 所属Consumer Group的Id</span></span><br><span class="line">        props.put(<span class="string">&quot;group.id&quot;</span>, <span class="string">&quot;consumer-demo&quot;</span>);</span><br><span class="line">        <span class="comment">// 自动提交offset</span></span><br><span class="line">        props.put(<span class="string">&quot;enable.auto.commit&quot;</span>, <span class="string">&quot;true&quot;</span>);</span><br><span class="line">        <span class="comment">// 自动提交offset的时间间隔</span></span><br><span class="line">        props.put(<span class="string">&quot;auto.commit.interval.ms&quot;</span>, <span class="string">&quot;1000&quot;</span>);</span><br><span class="line">        props.put(<span class="string">&quot;session.timeout.ms&quot;</span>, <span class="string">&quot;30000&quot;</span>);</span><br><span class="line">        <span class="comment">// key和value使用的Deserializer</span></span><br><span class="line">        props.put(<span class="string">&quot;key.deserializer&quot;</span>, </span><br><span class="line">                  <span class="string">&quot;org.apache.kafka.common.serialization.StringDeserializer&quot;</span>);</span><br><span class="line">        props.put(<span class="string">&quot;value.deserializer&quot;</span>, </span><br><span class="line">                  <span class="string">&quot;org.apache.kafka.common.serialization.StringDeserializer&quot;</span>);</span><br><span class="line">        <span class="comment">// 根据上面的配置创建KafkaConsumer对象</span></span><br><span class="line">        KafkaConsumer&lt;String, String&gt; consumer = <span class="keyword">new</span> KafkaConsumer&lt;&gt;(props);</span><br><span class="line">        <span class="comment">// 同时订阅test_topic1和test_topic2</span></span><br><span class="line">        consumer.subscribe(Arrays.asList(<span class="string">&quot;test_topic1&quot;</span>, <span class="string">&quot;test_topic2&quot;</span>));</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">                <span class="comment">// 从kafka集群拉取message，每次poll()可以拉取多个消息</span></span><br><span class="line">                ConsumerRecords&lt;String, String&gt; records = consumer.poll(<span class="number">100</span>);</span><br><span class="line">                <span class="comment">// 消费message，这里将消息的offset、key、value输出</span></span><br><span class="line">                <span class="keyword">for</span> (ConsumerRecord&lt;String, String&gt; record : records)</span><br><span class="line">                    System.out.printf(<span class="string">&quot;offset = %d, key = %s, value = %s\n&quot;</span>, </span><br><span class="line">                                     record.offset(), record.key(), record.value());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// 关闭Consumer</span></span><br><span class="line">            consumer.close();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们可以通过前文介绍的 ProducerDemo 发送 message，然后使用上面的 ConsumerDemo 来消费 message，这里就不再展示效果了。</p>
+<h2 id="Consumer-接口"><a href="#Consumer-接口" class="headerlink" title="Consumer 接口"></a>Consumer 接口</h2><p>了解了 KafkaConsumer 的基本使用之后，我们来看 KafkaConsumer 的具体实现，首先是其实现的接口 —— Consumer，对 Consumer 接口中方法进行分类之后，我们可以得到如下三大类：</p>
+<ul>
+<li>拉取元数据（查 topic、partition、offset）：<ul>
+<li>listTopics() 方法：查询 kafka 集群中全部 topic 的元信息。</li>
+<li>partitionsFor() 方法：查询指定 topic 的元数据。</li>
+<li>groupMetadata() 方法：查询当前 consumer group 的元信息。</li>
+<li>beginningOffsets() 方法、endOffsets() 方法：查询指定 partition 的最小 offset 值（因为日志压缩和日志保留策略的存在，所以最小 offset 不一定是 0）以及最大 offset 值。</li>
+<li>offsetsForTimes() 方法：根据时间戳查询指定 partition 中的 offset 值，返回 offset 值是大于指定时间的最小 offset（<code>earliest offset whose timestamp is greater than or equal to the given timestamp in the corresponding partition</code>）。</li>
+</ul>
+</li>
+<li>控制消费行为：<ul>
+<li>assign(<code>Collection&lt;TopicPartition&gt;</code>) 方法：用来手动给 consumer 分配其订阅的 topic 以及 partition 集合，该方法与 subscribe() 方法冲突。</li>
+<li>subscribe()方法：订阅指定的 topic，后续将由 kafka 集群通过 rebalance 协议为 consumer 自动分配 partition。 </li>
+<li>commit()、commitAsync() 方法：提交（异步提交）当前 consumer 的消费位置（也就是其已消费完成的 message 的 offset 值），默认情况下，consumer 的消费位置存储在 <code>__consumer_offsets</code> 这个特殊的 topic 中。</li>
+<li>poll() 方法：从当前 consumer 负责消费的 partition 中批量拉取 message。</li>
+<li>seek(TopicPartition)方法：指定 consumer 从指定 partition 的哪个 offset 位置开始后续消费。</li>
+<li>pause()、resume()方法：暂停/继续 consumer，暂停后 poll() 方法会返回集合。</li>
+</ul>
+</li>
+<li>获取消费装填：<ul>
+<li>assignment()：查询当前 consumer 消费的 partition。</li>
+<li>position(TopicPartition) 方法：获取 consumer 下次从指定 partition 拉取的 message 的 offset 值。</li>
+<li>committed() 方法：当前 consumer group 在指定 partition 的消费位置 。</li>
+</ul>
+</li>
+</ul>
+<h2 id="ConsumerNetworkClient"><a href="#ConsumerNetworkClient" class="headerlink" title="ConsumerNetworkClient"></a>ConsumerNetworkClient</h2><p>在前面介绍 KafkaProducer 的时候详细介绍了 NetworkClient 的实现，它负责管理 Producer 与 kafka 集群中各个 broker 之间的网络连接，底层依赖 KSelector 来完成网络读写操作，通过一系列 handle*() 方法处理正常响应、超时以及网络异常等。</p>
+<p>ConsumerNetworkClient 是专门为 Consumer 端提供的客户端，它底层依赖 NetworkClient 的上述功能来完成网络操作。依旧本着是先看数据结构，再看行为的思路，来看 ConsumerNetworkClient 的核心字段，如下：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/1%E3%80%81ConsumerNetworkClient%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png"></p>
+<h3 id="send"><a href="#send" class="headerlink" title="send"></a>send</h3><p>作为一个 Client，ConsumerNetworkClient 自然提供了发送请求的方法 —— send() 方法，它会将待发送的请求封装成ClientRequest 对象，保存到unsent集合中等待发送，具体实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> RequestFuture&lt;ClientResponse&gt; <span class="title">send</span><span class="params">(Node node, AbstractRequest.Builder&lt;?&gt; requestBuilder,</span></span></span><br><span class="line"><span class="function"><span class="params">				<span class="keyword">int</span> requestTimeoutMs)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">long</span> now = time.milliseconds();</span><br><span class="line">    <span class="comment">// RequestFutureCompletionHandler是ConsumerNetworkClient中定义的一个内部类，实现了RequestCompletionHandler接口</span></span><br><span class="line">    RequestFutureCompletionHandler completionHandler = <span class="keyword">new</span> RequestFutureCompletionHandler();</span><br><span class="line">    <span class="comment">// 创建ClientRequest对象</span></span><br><span class="line">    ClientRequest clientRequest = client.newClientRequest(node.idString(), requestBuilder, </span><br><span class="line">					now, <span class="keyword">true</span>, requestTimeoutMs, completionHandler);</span><br><span class="line">    <span class="comment">// 将ClientRequest对象写入到unsent中相应的队列中</span></span><br><span class="line">    unsent.put(node, clientRequest);</span><br><span class="line">    <span class="comment">// 唤醒在NetworkClient.poll()方法上阻塞等待网络事件的线程</span></span><br><span class="line">    client.wakeup();</span><br><span class="line">    <span class="comment">// 返回RequestFuture</span></span><br><span class="line">    <span class="keyword">return</span> completionHandler.future;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们可以看到，这里创建 ClientRequest 时指定的 callback 对象是 <strong>RequestFutureCompletionHandler</strong>，其中关联了发送请求对应的 RequestFuture 对象（future 字段）， ClientResponse 对象（response 字段）以及相关的 RuntimeException（e 字段）。在其 onComplete() 方法中，会初始化 ClientResponse 对象并将当前 <strong>RequestFutureCompletionHandler</strong> 对象添加到 <strong>pendingCompletion</strong> 集合；onFailure() 方法中会初始化 Exception 并将当前 <strong>RequestFutureCompletionHandler</strong> 对象添加到 <strong>pendingCompletion</strong> 集合。</p>
+<p>RequestFutureCompletionHandler 中的 future 字段是 <strong>RequestFuture</strong> 类型， RequestFuture 是 ConsumerNetworkClient 发出的一个异步请求的 Future 对象，其中的 result 字段（<code>AtomicReference&lt;Object&gt;</code> 类型）用来记录请求结果（具体 result 类型由 RequestFuture 的泛型指定），completedLatch 字段（CountDownLatch）用来实现 RequestFuture 的 awaitDone() 方法的阻塞效果，listeners 集合记录了（ConcurrentLinkedQueue）用来记录相关监听器。</p>
+<p>在 RequestFutureCompletionHandler.fireCompletion() 方法中会根据 e 字段调用 RequestFuture 的相应方法，完成（或异常完成）该 RequestFuture，关闭 completedLatch，唤醒阻塞在其上的线程。</p>
+<p>RequestFuture 中的方法都比较简单，熟悉 JDK Future 的胖友应该都能看懂。这里说一下 RequestFuture 中两个有意思的方法，一个是 compose(RequestFutureAdapter) 方法，它主要是将当前 RequestFuture 对象转换成另一个 RequestFuture 对象，目的是为了转换 result 类型，具体实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;S&gt; <span class="function">RequestFuture&lt;S&gt; <span class="title">compose</span><span class="params">(<span class="keyword">final</span> RequestFutureAdapter&lt;T, S&gt; adapter)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 创建一个新的RequestFuture对象</span></span><br><span class="line">    <span class="keyword">final</span> RequestFuture&lt;S&gt; adapted = <span class="keyword">new</span> RequestFuture&lt;&gt;();</span><br><span class="line">    <span class="comment">// 添加一个监听器，当前RequestFuture完成的时候，会通过该监听器触发新的RequestFuture完成</span></span><br><span class="line">    addListener(<span class="keyword">new</span> RequestFutureListener&lt;T&gt;() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">(T value)</span> </span>&#123;</span><br><span class="line">            adapter.onSuccess(value, adapted);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onFailure</span><span class="params">(RuntimeException e)</span> </span>&#123;</span><br><span class="line">            adapter.onFailure(e, adapted);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">return</span> adapted; <span class="comment">// 返回新的RequestFuture</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>另一处是 chain() 方法，它是为了将多个有依赖关系的 RequestFuture 组成一个责任链，具体实现原理与 compose() 方法类似，也是通过监听器的方式实现的。</p>
+<h3 id="poll"><a href="#poll" class="headerlink" title="poll"></a>poll</h3><p>ConsumerNetworkClient 中最核心的方法是 poll(Timer timer, PollCondition pollCondition, boolean disableWakeup) 方法，这三个参数的含义如下：</p>
+<ul>
+<li><p>timer（Timer 类型）：Timer 是一个辅助类，用来帮助 NetworkClient.poll() 方法这种阻塞的方法计算超时时间。</p>
+</li>
+<li><p>pollCondition（PollCondition 类型）：PollCondition 类似于一个钩子方法，通过外部提供的 shouldBlock() 钩子方法来控制 ConsumerNetworkClient.poll() 是否该进行阻塞。这里说一下 PollCondition 接口，它只有两个实现：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/2%E3%80%81PollCondition%E6%8E%A5%E5%8F%A3%E5%AE%9E%E7%8E%B0.png"></p>
+<p>RequestFuture 中的 shouldBlock() 方法实际就是 !isDone() 方法，也就是说，我们在 ConsumerNetworkClient.poll() 方法中根据某个请求的状态，决定是否阻塞等待其响应。</p>
+</li>
+<li><p>disableWakeup（boolean 类型）：标识此次 poll() 方法是否是可被唤醒的，也就是，是否关注 wakeup 字段的值。如果 disableWakeup 字段设置为 true，则在 poll() 方法中不会关注 wakeup 字段值；如果设置为 false，则 wakeup 为 true，则抛出 WakeupException 并退出此次 poll() 方法调用。</p>
+</li>
+</ul>
+<p>好了，下面来看 poll() 方法的核心逻辑：</p>
+<p><strong>1、</strong> 加锁，ConsumerNetworkClient 是线程安全，毕竟有很多线程会并发使用 ConsumerNetworkClient 这个对象来发送请求并接收响应。</p>
+<p><strong>2、</strong> 执行 handlePendingDisconnects() 方法处理 pendingDisconnects 集合，此处会清理 UnsentRequests 中每个 Node 对应的 ClientRequest 集合，并触发每个 ClientRequest 关联的 RequestFutureCompletionHandler 的 onFailure() 方法。同时，还会调用 NetworkClient 的 disconnect() 方法，清理 InFlightRequests 集合并触发相关回调。</p>
+<p><strong>3、</strong> 执行 trySend() 方法，尝试发送 unsent 集合中的请求。具体逻辑是：遍历每个 Node 对应的 ClientRequest 列表，每次循环都调用 NetworkClient.ready() 方法检测当前是否具备发送条件，其中包括网络连接状态、InFlightRequests 队列状态等等。检测通过之后，则调用 NetworkClient.send() 方法将请求放入InFlightRequests 队里中等待响应，也放入 KafkaChannel 的 send 字段中等待发送。同时，会将请求从 unsent 中删除。</p>
+<p><strong>4、</strong> 接下来根据条件决定 NetworkClient.poll() 方法的阻塞时长，这里的条件有两个：</p>
+<ul>
+<li>pendingCompletion 集合是否为空，如果不为空，则表示有 RequestFutureCompletionHandler 等待执行，所以阻塞时长为 0。</li>
+<li>pollCondition.shouldBlock() 这个钩子方法的返回值，如果返回 false，则表示无需阻塞。其实就是看自己关注的请求是否已经完成了。</li>
+</ul>
+<p><strong>5、</strong> 在 NetworkClient.poll() 方法中会更新连接状态，在 poll() 方法结束之后，这里会再次检查连接状态并更新处理 unsent 集合中未发送的请求，具体逻辑与步骤1基本一致，不再重复。</p>
+<p><strong>6、</strong> 检查 disableWakeup、wakeup，决定是否抛出 WakeupException 异常。检查当前线程是否被中断，如果被中断了，则抛出 InterruptException 异常。</p>
+<p><strong>7、</strong> 再次调用 trySend() 方法，之所以再次调用 trySend() 方法，是因为经历了一次 poll() 之后，可能有的连接、InFlightRequests 等条件准备好了。</p>
+<p><strong>8、</strong> 调用 failExpiredRequests() 方法处理 unsent 集合中过期的请求，这里会调用过期请求关联的 RequestFutureCompletionHandler.onFailure() 方法。</p>
+<p><strong>9、</strong> 清空 unsent 集合。</p>
+<p><strong>10、</strong> 执行 firePendingCompletedRequests() 方法，触发 pendingCompletion 集合中全部的 RequestFutureCompletionHandler，这里不仅仅会完成 RequestFuture，还会触发注册在其上的监听器。</p>
+<h3 id="其他方法简介"><a href="#其他方法简介" class="headerlink" title="其他方法简介"></a>其他方法简介</h3><ul>
+<li>awaitMetadataUpdate()方法：循环调用 poll() 方法，直到 Metadata 更新完毕（版本号增加），实现阻塞等待Metadata 更新完成。</li>
+<li>awaitPendingRequests()方法：阻塞等待 unsent 和 InFightRequests 中的请求全部完成（正常完成或异常完成都可以）。</li>
+<li>leastLoadedNode() 方法：查找 kafka 集群中负载最低的Node。</li>
+<li>hasReadyNodes() 方法：查询当前 kafka 集群是否有 Node 可以发送请求。</li>
+<li>disconnectAsync() 方法：关闭与指定 Node 的连接，这里会写入 pendingDisconnects 集合，并调用 NetworkClient 的 wakeup() 方法，尽快处理断开的连接。</li>
+</ul>
+<h2 id="SubscriptionState"><a href="#SubscriptionState" class="headerlink" title="SubscriptionState"></a>SubscriptionState</h2><p>通过前面的介绍我们知道，在 consumer 启动之后会经历 rebalance 来确定自己消费的 partition，紧接着 consumer 会从 <code>__consumer_offsets</code> 这个内部 topic 拉取 offset 确认自己从哪个位置开始消费。</p>
+<p>KafkaConsumer 在内存中使用 SubscriptionState 来维护自身消费的 topic、partition 以及 offset。下面来看 SubscriptionState 的核心字段：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/3%E3%80%81SubscriptionState%E5%AD%97%E6%AE%B5.png"></p>
+<p>这里我们来关注一下 assignment 字段，TopicPartitionState 用来记录当前 consumer 消费对应 partition 的消费状态，核心字段如下：</p>
+<p><img src="/Users/xxx/source/hexo/source/_posts/4%E3%80%81TopicPartitionState%E6%A0%B8%E5%BF%83%E5%AD%97%E6%AE%B5.png"></p>
+<p>TopicPartitionState 提供了非常多的方法来读写上述字段，这里不再展开，没啥难度。</p>
+<p>接下来看 PartitionStates，其中最核心的就是 map 字段（LinkedHashMap 类型），其中的 Key 是 TopicPartition，Value 是 TopicPartitionState，这里之所以使用 LinkedHashMap 类型的 Map，是为了更新 TopicPartition 的顺序，保证 Fetch  Request 不会出现饥饿的状态，胖友们可以看一下 updateAndMoveToEnd() 、moveToEnd() 方法，都是用来调整 TopicPartition 消费状态顺序的。另外，PartitionStates 中提供了一些其他的方法都是用来读写 map 集合，不再多说。</p>
+<p>到此为止，SubscriptionState 的核心数据结构就介绍完了。SubscriptionState 本身提供的行为基本都是用来修改上述字段的，这里不再展开了。</p>
+<h2 id="ConsumerCoordinator"><a href="#ConsumerCoordinator" class="headerlink" title="ConsumerCoordinator"></a>ConsumerCoordinator</h2><p>在 KafkaConsumer 中通过 ConsumerCoordinator 实现与服务端的 GroupCoordinator 的完成 rebalance 协议中的一系列交互，ConsumerCoordinator 继承了 AbstractCoordinator 抽象类。AbstractCoordinator 的核心字段如下：</p>
+<p><img src="5%E3%80%81AbstractCoordinator%E5%AD%97%E6%AE%B5.png"></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/uncategorized/8%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer3/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-7、深潜kafka-consumer2" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/">7、深潜kafka consumer —— consumer</a>
+    </h1>
+  
+
+        
+        <a href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/" class="archive-article-date">
+  	<time datetime="2021-06-02T12:35:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-06-02</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="ConsumerPartitionAssignor"><a href="#ConsumerPartitionAssignor" class="headerlink" title="ConsumerPartitionAssignor"></a>ConsumerPartitionAssignor</h2><p>在 rebalance 协议里面，group leader 在收到 JoinGroup Response 之后，会按照其中指定的分配策略完成 partition 分配，每个 partition 分配策略就是一个 ConsumerPartitionAssignor 接口的实现。下图展示了 ConsumerPartitionAssignor 继承结构：</p>
+<p><img src="6%E3%80%81ConsumerPartitionAssignor%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB%E5%9B%BE.png"></p>
+<p>ConsumerPartitionAssignor 接口中定义了五个内部类，我们一个个来说：</p>
+<p><img src="7%E3%80%81ConsumerPartitionAssignor%E7%B1%BB%E7%BB%93%E6%9E%84.png"></p>
+<ul>
+<li><p>Subscription 中保存了 consumer 参加 rebalance 之前已经订阅的 topic（topics字段）、已分配的 partition（ownedPartitions 字段，<code>List&lt;TopicPartition&gt;</code>），以及在 consumer 端配置的 groupInstanceId（在 Static Membership 优化中使用）。</p>
+</li>
+<li><p>Assignment 中保存了 partition 的分配结果，partitions 字段（<code>List&lt;TopicPartition&gt;</code>）表示的是分配给某 consumer 的 TopicPartition 集合，userData 是用户自定义的数据。</p>
+</li>
+<li><p>GroupAssignment 底层通过 <code>Map&lt;String, Assignment&gt;</code> 维护全部的 partition 分配结果。</p>
+</li>
+<li><p>GroupSubscription 底层通过 <code>Map&lt;String, Subscription&gt;</code> 记录全部 consumer 目前已分配的 partition 信息。这两个 Map 的 Key 都是 consumer 在 consumer group 中的唯一标识 —— MemberId。</p>
+</li>
+<li><p>RebalanceProtocol 是个枚举，可选值有 EAGER、COOPERATIVE 两个，对应了我们前面介绍的两个 rebalance 协议的名称。</p>
+</li>
+</ul>
+<p>接下来看 ConsumerPartitionAssignor 的方法：</p>
+<ul>
+<li>assign() 方法是其中最核心的方法 ，它接收集 kafka 集群元数据信息以及每个 consumer 目前的 partition 订阅情况，返回的是 GroupAssignment，也就是 partition 的分配结果。</li>
+<li>在每个 consumer 收到 group leader 发来的 partition 分配结果时，会调用 onAssignment() 这个回调方法，此调用发生在解析 SyncGroupResponse 之后。</li>
+<li>supportedProtocols() 方法用于获取当前 ConsumerPartitionAssignor 支持的 rebalance 协议。</li>
+</ul>
+<p>AbstractPartitionAssignor 抽象类实现了 ConsumerPartitionAssignor 接口，其中主要是对 assign() 方法进行了简单的实现，具体实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> GroupAssignment <span class="title">assign</span><span class="params">(Cluster metadata, GroupSubscription groupSubscription)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 获取当前各个consumer已订阅的partition信息</span></span><br><span class="line">    Map&lt;String, Subscription&gt; subscriptions = groupSubscription.groupSubscription();</span><br><span class="line">    <span class="comment">// 获取订阅了哪些topic</span></span><br><span class="line">    Set&lt;String&gt; allSubscribedTopics = <span class="keyword">new</span> HashSet&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;String, Subscription&gt; subscriptionEntry : subscriptions.entrySet())</span><br><span class="line">        allSubscribedTopics.addAll(subscriptionEntry.getValue().topics());</span><br><span class="line">    <span class="comment">// 从Metadata元数据中获取每个topic的partition个数</span></span><br><span class="line">    Map&lt;String, Integer&gt; partitionsPerTopic = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (String topic : allSubscribedTopics) &#123;</span><br><span class="line">        Integer numPartitions = metadata.partitionCountForTopic(topic);</span><br><span class="line">        <span class="keyword">if</span> (numPartitions != <span class="keyword">null</span> &amp;&amp; numPartitions &gt; <span class="number">0</span>)</span><br><span class="line">            partitionsPerTopic.put(topic, numPartitions);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 调用子类的assign()方法进行partition分配</span></span><br><span class="line">    Map&lt;String, List&lt;TopicPartition&gt;&gt; rawAssignments = assign(partitionsPerTopic, subscriptions);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将partition分配结果封装成GroupAssignment对象返回</span></span><br><span class="line">    Map&lt;String, Assignment&gt; assignments = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;String, List&lt;TopicPartition&gt;&gt; assignmentEntry : rawAssignments.entrySet())</span><br><span class="line">        assignments.put(assignmentEntry.getKey(), <span class="keyword">new</span> Assignment(assignmentEntry.getValue()));</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> GroupAssignment(assignments);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="RangeAssignor"><a href="#RangeAssignor" class="headerlink" title="RangeAssignor"></a>RangeAssignor</h3><p>下面来看 ConsumerPartitionAssignor  具体的实现类，RangeAssignor 策略的原理是按照 consumer 总数和 partition 总数进行整除运算来获得一个跨度，然后将 partition 按照跨度进行平均分配，以保证 partition 尽可能均匀地分配给所有的 consumer。</p>
+<p>对于每一个 topic，RangeAssignor 策略会将 consumer group 内所有订阅这个 topic 的 consumer 按照名称的字典序排序，然后为每个 consumer 划分固定的 partition 范围，如果不够平均分配，那么字典序靠前的 consumer 会被多分配一个分区。</p>
+<p>假设 <code>n =  partition_num / consumer_num</code>，<code>m = partition_num % consumer_num</code>，那么前 m 个消费者每个分配 n+1 个 partition，后面的 <code>consumer_num - m</code> 个消费者每个分配 n 个 partition。我们举个栗子，假设 consumer group 内有 2 个 consumer，都订阅了 t0 和 t1 两个 topic，并且每个 topic 都有 4 个 partition，那么通过 RangeAssignor  分配的结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t0p1、t1p0、t1p1（其中，t0p0 是 topic0 中的 partition0）</span><br><span class="line">consumer1：t0p2、t0p3、t1p2、t1p3</span><br></pre></td></tr></table></figure>
+
+<p>看上去 RangeAssignor 的分配是相对均匀的，但是在有的场景中，分配结果就会出现不均匀的情况。假设上面的示例中，每个 topic 有三个 partition，RangeAssignor 的分配结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t0p1、t1p0、t1p1</span><br><span class="line">consumer1：t0p2、t1p2</span><br></pre></td></tr></table></figure>
+
+<p>明显可以看到，这种分配结果显然是不均匀的，随着不均匀的 topic  越来越多，会导致 consumer 处理的 partition 不均衡。</p>
+<h3 id="RoundRobinAssignor"><a href="#RoundRobinAssignor" class="headerlink" title="RoundRobinAssignor"></a>RoundRobinAssignor</h3><p>RoundRobinAssignor 分配策略的原理是将 consumer group 内所有 consumer 以及所有 TopicPartition 按照字典序排序，然后通过轮询方式逐个将 partition 分配给每个 consumer。</p>
+<p>如果同一个 consumer group 内所有 consumer 订阅的 topic 都是相同的， RoundRobinAssignor 策略的分配结果是均匀的。依旧是上面两个 t0、t1 两个 topic，每个 topic 三个 partition，RoundRobinAssignor 的分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t0p2、t1p1</span><br><span class="line">consumer1：t0p1、t1p0、t1p2</span><br></pre></td></tr></table></figure>
+
+<p>但如果 consumer group 内的 consumer 订阅了不同的 topic，有可能会导致分配结果不均匀。例如，假设 consumer group 内有 3 个 consumer，订阅了 3 个 topic，每个 topic 有 3 个 partition。其中，consumer0 订阅了 topic0，consumer1 订阅了 t0 和 t1 ，consumer2 订阅的是 t0、t1 和 t2，最终的分配结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0</span><br><span class="line">consumer1：t1p0</span><br><span class="line">consumer2：t1p1、t2p0、t2p1、t2p2</span><br></pre></td></tr></table></figure>
+
+<h3 id="StickyAssignor"><a href="#StickyAssignor" class="headerlink" title="StickyAssignor"></a>StickyAssignor</h3><p>StickyAssignor 是一种黏性分配策略，它的主要目的是在分配均匀的前提下，尽可能的与上次分配结果保持一致。StickyAssignor策略的具体实现要比RangeAssignor和RoundRobinAssignor这两种分配策略要复杂很多。</p>
+<p>下面我们通过一个示例来说明 StickyAssignor 的分配效果。假设 consumer group 内有 3 个 consumer，他们同时订阅了 4 个topic，每个 topic 有 2 个 partition。最终的分配结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t1p1、t3p0</span><br><span class="line">consumer1：t0p1、t2p0、t3p1</span><br><span class="line">consumer2：t1p0、t2p1</span><br></pre></td></tr></table></figure>
+
+<p>此时，consumer1 如果宕机离开 consumer group，那么 consumer group 会执行rebalance，新的分配结果就变成了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t1p1、t3p0、t2p0</span><br><span class="line">consumer2：t1p0、t2p1、t0p1、t3p1</span><br></pre></td></tr></table></figure>
+
+<p>而如果使用 RoundRobinAssignor ，分配的结果是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0、t1p0、t2p0、t3p0</span><br><span class="line">consumer2：t0p1、t1p1、t2p1、t3p1</span><br></pre></td></tr></table></figure>
+
+<p>比较这两个策略的分配结果可以看出，StickyAssignor 保留了上一次分配的全部结果，只是将 consumer1 负责的 partition 分配给了 consumer0 和 consumer1。</p>
+<p>再举个栗子，三个 consumer订阅了三个 topic，每个 topic 三个 partition，consumer0 订阅了 t0，consumer1 订阅了 t0 和 t1，consumer2 订阅了 t0、t1 和 t2。此时采用 RoundRobinAssignor 策略得到的不均匀结果前面说明了，这里不再重复。如果使用 StickyAssignor 策略，分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">consumer0：t0p0</span><br><span class="line">consumer1：t1p0, t1p1</span><br><span class="line">consumer2：t2p0, t2p1, t2p2</span><br></pre></td></tr></table></figure>
+
+<p>如果此时 consumer0 宕机，RoundRobinAssignor策略产生的新分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer1：t0p0、t1p1</span><br><span class="line">consumer2：t1p0、t2p0、t2p1、t2p2</span><br></pre></td></tr></table></figure>
+
+<p>而使用 StickyAssignor 策略产生的新分配结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consumer1：t1p0、t1p1、t0p0</span><br><span class="line">consumer2：t2p0、t2p1、t2p2</span><br></pre></td></tr></table></figure>
+
+<p>显然，StickyAssignor 策略比其他两种分配策略更加优秀。</p>
+<p>下面来看一下 StickyAssignor 的实现吧，为啥不看 RangeAssignor、RoundRobinAssignor 的实现呢？因为简单，简单到从原理直接就可以给出代码。</p>
+<h4 id="具体实现分析"><a href="#具体实现分析" class="headerlink" title="具体实现分析"></a>具体实现分析</h4><p>要看 StickyAssignor 先父类 AbstractStickyAssignor，它的 assign() 方法实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Map&lt;String, List&lt;TopicPartition&gt;&gt; assign(Map&lt;String, Integer&gt; partitionsPerTopic,</span><br><span class="line">                                                Map&lt;String, Subscription&gt; subscriptions) &#123;</span><br><span class="line">    Map&lt;String, List&lt;TopicPartition&gt;&gt; consumerToOwnedPartitions = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">if</span> (allSubscriptionsEqual(partitionsPerTopic.keySet(), subscriptions, consumerToOwnedPartitions)) &#123;</span><br><span class="line">        log.debug(<span class="string">&quot;Detected that all consumers were subscribed to same set of topics, invoking the optimized assignment algorithm&quot;</span>);</span><br><span class="line">        partitionsTransferringOwnership = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">        <span class="keyword">return</span> constrainedAssign(partitionsPerTopic, consumerToOwnedPartitions);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        log.debug(<span class="string">&quot;Detected that all not consumers were subscribed to same set of topics, falling back to the general case assignment algorithm&quot;</span>);</span><br><span class="line">        partitionsTransferringOwnership = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">return</span> generalAssign(partitionsPerTopic, subscriptions);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>allSubscriptionsEqual() 方法中做了两件事，一件事是检查各个 consumer 订阅的 topic 是否一致，体现在该方法的返回值中，另一件事是填充 consumerToOwnedPartitions 集合，这个集合填充的是当前各个 consumer 处理的 TopicPartition 集合。深入 allSubscriptionsEqual() 方法可以看到填充 consumerToOwnedPartitions 集合的数据来源与  memberData() 这个抽象方法，StrickyAssignor 的 实现是从 Subscription.userData 中得到的。</p>
+<p>如果 consumer group 中的 consumer 都订阅了同一个 topic，会进入 constrainedAssign() 方法这个分支，走优化算法。constrainedAssign() 方法的核心步骤是：</p>
+<p><strong>1、</strong> 执行一些准备工作，例如：</p>
+<ul>
+<li>计算每个 consumer 能够分配的最大 partition 数（maxQuota）和最小 partition 数（minQuota）</li>
+<li>用来存储分配 partition 已达上限的 consumer 的集合（maxCapacityMembers 集合）</li>
+<li>用来存储分配 partition 已达下限的 consumer 的集合（minCapacityMembers 集合）</li>
+<li>用来存储分配 partition 未达下限的 consumer 的集合（unfilledMembers 集合）。</li>
+<li>存储全部未分配的 TopicPartition 的 unassignedPartitions 集合。</li>
+<li>存储从任意 consumer revoke 回来的 TopicPartition 的 allRevokedPartitions 集合。</li>
+<li>存储最终分配结果的 assignment 集合（<code>Map&lt;String, List&lt;TopicPartition&gt;&gt;</code>）。</li>
+</ul>
+<p><strong>2、</strong> 根据 consumerToOwnedPartitions 重新分配 partition，分配出去的 partition 将从 unassignedPartitions 中删除：</p>
+<ul>
+<li>碰到 TopicPartition 数超过 maxQuota 的 consumer，多出来的 TopicPartition 进入 allRevokedPartitions 集合。</li>
+<li>碰到 TopicPartition 数不足 minQuota 的 consumer，consumer 进入 unfilledMembers 集合。</li>
+<li>碰到 TopicPartition 数等于 maxQuota 或 minQuota 的consumer，consumer 进入 maxCapacityMembers 或 minCapacityMembers 集合。</li>
+</ul>
+<p><strong>3、</strong> 如果 unfilledMembers、unassignedPartitions 两个集合不为空，则表示同时有未达标的 consumer 和未分配的 partition，开始将 unassignedPartitions 中的 TopicPartition 分配给 unfilledMembers 中的 consumer。</p>
+<p><strong>4、</strong> 如果 unfilledMembers 还不为空，说明给 maxCapacityMembers 集合中 consumer 分配 partition 分多了，就要开始从 maxCapacityMembers 的 consumer 那里偷 partition 了，但是要有个限度，不能把原来的 maxCapacityMembers 的 consumer 薅到 minQuota 以下。</p>
+<p><strong>5、</strong> 最后，来处理 unfilledMembers 为空，但是 unassignedPartitions 不为空的情况，这说明 minCapacityMembers 里面有太多 consumer 摸鱼，这里就要将 unassignedPartitions 中 partition 分配给 minCapacityMembers 中的摸鱼 consumer，提高他们的负载，但是也是有上限的，给他们分配再多，不能超过 maxQuato。</p>
+<p>经过上面的这一通处理，assignment 集合就是最终的分配结果了。</p>
+<p>如果 consumer group 中的 consumer 并没有订阅了同一个 topic，会进入 generalAssign() 方法这个分支。generalAssign() 方法涉及到的核心数据结构如下：</p>
+<ul>
+<li> <strong>consumer2AllPotentialPartitions</strong>（<code>Map&lt;String, List&lt;TopicPartition&gt;&gt;</code>）、<strong>partition2AllPotentialConsumers</strong>（<code>Map&lt;TopicPartition, List&lt;String&gt;&gt;</code>），因为 consumer group 中的 consumer 订阅的 topic 不同，所以需要记录每个 consumer 能分配哪些 TopicPartition（consumer2AllPotentialPartitions），每个 TopicPartition 能分配给哪些 consumer（partition2AllPotentialConsumers） 。</li>
+<li><strong>partitionsPerTopic</strong>: 每个 topic 有多少过 partition。</li>
+<li><strong>subscriptions</strong>：每个 consumer 订阅了哪些 topic。</li>
+<li><strong>currentAssignment</strong>（<code>Map&lt;TopicPartition, ConsumerGenerationPair&gt;</code>）记录了当前每个 consumer 分配的 partition 集合（就是此轮 rebalance 开始之前的 partition 分配结果）。后面会基于这个集合，得出此轮 rebalance 的结果。</li>
+<li><strong>currentPartitionConsumer</strong>：记录了当前每个 Partition 分配给了哪个 Consumer，其实就是这个集合的翻转 currentAssignment （即 consumer –&gt; <code>List&lt;TopicPartition&gt;</code> 转成了 TopicPartition –&gt; consumer）。</li>
+<li><strong>sortedPartitions</strong>：TopicPartition 的有序集合，排序规则是按照 TopicPartition 能分配给多少 consumer 顺序排的。</li>
+<li><strong>unassignedPartitions</strong>：记录还未分配出去的 TopicPartition。</li>
+<li><strong>sortedCurrentSubscriptions</strong>：consumer 的有序集合，排序规则是按照目前已分配的 partition 数进行排序的。</li>
+<li><strong>reassignablePartitions</strong>：可重新分配的 TopicPartition 集合，</li>
+<li><strong>fixedPartitions</strong>：不可重新分配的 TopicPartition 集合。</li>
+<li><strong>fixedAssignments</strong>：不可修改其分配结果的 consumer 集合。</li>
+</ul>
+<p>generalAssign() 算法的核心步骤如下：</p>
+<p>1、更新 <em><strong>currentAssignment</strong></em> 集合，这里会删除不存在的 consumer 和 TopicPartition。</p>
+<p>2、分配 <em><strong>unassignedPartitions</strong></em> 集合中的 TopicPartition：这里会按照 <strong>sortedCurrentSubscriptions</strong> 集合的顺序分配 TopicPartition（当然，前提是 consumer 订阅了这个 TopicPartition）。这一轮操作下来之后，可能还有 TopicPartition 未分配出去，也可能有 consumer 没有分配任何 TopicPartition。</p>
+<p>3、查询分配结果不能修改分配结果的 consumer，将这些 consumer 记录到 <strong>fixedAssignments</strong> 集合，同时将这些 consumer 从 <strong>currentAssignment</strong> 集合删除。（缩小问题范围）</p>
+<p>4、接下来按照 <strong>sortedPartitions</strong> 集合的顺序，处理可以重新分配的 TopicPartition。如果移动一个 TopicPartition 可以提高整体的平衡性的话，就进行移动，直至达到 balance 的状态。</p>
+<p>5、如果在步骤 4 中移动了 TopicPartition，但是没有提高平衡性（ <em>balance score</em>）的话，就需要根据黏性条件，决定是否回滚到原来的分配结果。</p>
+<p>6、最后，将 <strong>fixedAssignments</strong> 中记录的 consumer 重新添加回 <strong>currentAssignment</strong> 集合。</p>
+<p>在 generalAssign() 方法中判断一次分配结果是否平衡的结果有两个：</p>
+<ul>
+<li>consumer 分配的 TopicPartition 数量只差不超过 1。</li>
+<li>不存在重新分配 TopicPartition 提高平衡性的可能。这里平衡性（balance score）的计算方式是：所有 consumer 分配的 TopicPartition 数量的差值，这个差值越小，分配结果越平衡。</li>
+</ul>
+<p>StickyAssignor 的算法核心与 AbstractStickyAssignor 一致，StickyAssignor 实现了序列化和反序列化 MemebrData 的方法，以及 onAssignment() 方法，这些方法没有什么难度，这里不展开了。</p>
+<h3 id="CooperativeStickyAssignor"><a href="#CooperativeStickyAssignor" class="headerlink" title="CooperativeStickyAssignor"></a>CooperativeStickyAssignor</h3><p>CooperativeStickyAssignor 与 StickyAssignor 一样，都继承了 AbstractStickyAssignor 抽象类，其 assign() 方法首先会调用 super.assign() 方法完成 partition 分配。在分配过程中，如果一个 TopicPartition 发生了迁移（也就是更换了 consumer），则将该 TopicPartition 记录到 partitionsTransferringOwnership 集合中。最后，调用 adjustAssignment() 方法从分配结果中删除 partitionsTransferringOwnership 集合，从而满足 Incremental Cooperative Rebalancing 协议的需求。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本课时重点介绍了 kafka consumer 中 partition 分配策略的具体实现。下一课时开始介绍 KafkaConsumer 的核心实现。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/kafka/7%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer2/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-6、深潜kafka-consumer1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/">6、深潜kafka-consumer——consumer rebalance 协议详解</a>
+    </h1>
+  
+
+        
+        <a href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/" class="archive-article-date">
+  	<time datetime="2021-05-26T14:50:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-26</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="consumer-group-rebalance-原理"><a href="#consumer-group-rebalance-原理" class="headerlink" title="consumer group rebalance 原理"></a>consumer group rebalance 原理</h2><p>在开始分析 KafkaConsumer 的具体实现之前，我们先来介绍一下 KafkaConsumer 涉及到的一些基础理论。在第一课时介绍 Consumer Group 时提到，对于同一个 Consumer Group 来说，同一个 Topic 的不同 partition 会分配给不同的 consumer 进行消费，那如何分配 partition，如何在有新 consumer 加入以及 consumer 宕机的时候重新分配 partition，就是我们说的 consumer group rebalance。</p>
+        
+          <a class="article-more-a" href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/kafka/6%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-consumer1/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-kafka消息格式" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -693,173 +1108,10 @@
 
 
   
-    <article id="post-1、kafka基本概念" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/">1、kafka基本概念</a>
-    </h1>
-  
-
-        
-        <a href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" class="archive-article-date">
-  	<time datetime="2021-05-03T01:05:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"><br><br/><br>Apache Kafka 是一种分布式消息系统，由Scala语言编写而成。</p>
-<h1 id="Kafak-基本概念"><a href="#Kafak-基本概念" class="headerlink" title="Kafak 基本概念"></a>Kafak 基本概念</h1><h2 id="message"><a href="#message" class="headerlink" title="message"></a>message</h2><p>message 是 Kafka 中最基本的数据单元，它由 key 和 value 两部分构成，KV 都为字节数组。</p>
-<p>Kafka 会按照一定的策略，将消息按照 key 值路由到指定的 partition 中，从而保证 key 相同的 message 全部写入同一 partition 中。</p>
-<p>value 是 Kafka真正传递的业务数据。</p>
-        
-          <a class="article-more-a" href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/#more">more >></a>
-        
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-0、kafka源码剖析课" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/kafka/0%E3%80%81kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE/">0、kafka源码剖析课</a>
-    </h1>
-  
-
-        
-        <a href="/kafka/0%E3%80%81kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE/" class="archive-article-date">
-  	<time datetime="2021-05-03T01:02:03.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><img src="kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE.png"><br><br/></p>
-<p>整个 kafka 源码剖析课，并不需要深入了解 Scala，只需要有面向对象的编程基础就行，例如，会点 Java 编程，剩下的交给我就好。</p>
-<hr>
-<p><strong><a href="/kafka/1%E3%80%81kafka%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="1、kafka基本概念">1、kafka基本概念</a></strong><br><strong><a href="/kafka/2%E3%80%81kafka-2-8-0%E6%BA%90%E7%A0%81%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" title="2、kafka2.8.0源码环境搭建">2、kafka2.8.0源码环境搭建</a></strong><br><strong><a href="/kafka/3%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer1/" title="3、深潜KafkaProducer——核心架构">3、深潜KafkaProducer——核心架构</a></strong><br><strong><a href="/kafka/4%E3%80%81%E6%B7%B1%E6%BD%9Ckafka-producer2/" title="4、深潜KafkaProducer——RecordAccumulator">4、深潜KafkaProducer——RecordAccumulator</a></strong></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/kafka//" class="article-tag-list-link color1">kafka</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/kafka/0%E3%80%81kafka%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%E8%AF%BE/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
+    <nav id="page-nav">
+      <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next &amp;raquo;</a>
+    </nav>
   
 
 
